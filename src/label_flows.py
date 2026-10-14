@@ -4,9 +4,11 @@ Ly do: flow ngan + reset nhieu = dau hieu scan/inject; flow dai/on dinh = normal
 """
 import pandas as pd
 import os
+from pathlib import Path
 
-IN = r"D:\PATTT\data\processed\flows.csv"
-OUT = r"D:\PATTT\data\processed\labeled_flows.csv"
+BASE_DIR = Path(__file__).resolve().parent.parent
+IN = BASE_DIR / "data" / "processed" / "flows.csv"
+OUT = BASE_DIR / "data" / "processed" / "labeled_flows.csv"
 
 def rule(row):
     if (row["rst"] > 0) and (row["duration"] < 6 or row["n_pkts"] < 16):

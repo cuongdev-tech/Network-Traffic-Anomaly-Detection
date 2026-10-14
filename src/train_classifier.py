@@ -1,14 +1,16 @@
 """Buoc 8 (Option A): Train RandomForest baseline tren labeled_flows.csv (11 mau demo)."""
 import pandas as pd
 import os
+from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
 import joblib
 
-IN = r"D:\PATTT\data\processed\labeled_flows.csv"
-MODEL = r"D:\PATTT\models\rf_attack.joblib"
+BASE_DIR = Path(__file__).resolve().parent.parent
+IN = BASE_DIR / "data" / "processed" / "labeled_flows.csv"
+MODEL = BASE_DIR / "models" / "rf_attack.joblib"
 FEATS = ["duration","n_pkts","bytes_total","byte_ratio_fwd_bwd","mean_iat","mean_size","syn","ack","rst","syn_no_ack"]
 
 def main():

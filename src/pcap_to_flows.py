@@ -1,9 +1,12 @@
 """Buoc 5-6: Gom goi tin thanh Flow (5-tuple) + trich feature flow-level va host-level."""
 from scapy.all import rdpcap, IP, TCP, UDP
 from collections import defaultdict
+from pathlib import Path
 import pandas as pd
 import math
 import os
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 def get_pkt_info(p):
     """Tra ve (src, dst, sport, dport, proto, flags_str, size, time) hoac None neu non-IP."""
@@ -110,10 +113,10 @@ def flows_to_hosts(flow_df, window=60):
     return pd.DataFrame(rows)
 
 if __name__ == "__main__":
-    os.makedirs(r"D:\PATTT\data\processed", exist_ok=True)
+    os.makedirs(BASE_DIR / "data" / "processed", exist_ok=True)
     all_f, all_h = [], []
     for f in ["attack-injection-hao123.pcap", "attack-injection-id1cn.pcap"]:
-        path = os.path.join(r"D:\PATTT\data\raw", f)
+        path = os.path.join(BASE_DIR / "data" / "raw", f)
         print(f"\n=== {f} ===")
         fdf = pcap_to_flows(path)
         hdf = flows_to_hosts(fdf)
@@ -123,6 +126,6 @@ if __name__ == "__main__":
         print(fdf[["src","dst","sport","dport","proto","n_pkts","duration","syn","ack","rst","syn_no_ack"]].head(10).to_string())
         print(hdf.to_string())
         all_f.append(fdf); all_h.append(hdf)
-    pd.concat(all_f).to_csv(r"D:\PATTT\data\processed\flows.csv", index=False)
-    pd.concat(all_h).to_csv(r"D:\PATTT\data\processed\hosts.csv", index=False)
+    pd.concat(all_f).to_csv(BASE_DIR / "data" / "processed" / "flows.csv", index=False)
+    pd.concat(all_h).to_csv(BASE_DIR / "data" / "processed" / "hosts.csv", index=False)
     print("\nDa luu flows.csv va hosts.csv")

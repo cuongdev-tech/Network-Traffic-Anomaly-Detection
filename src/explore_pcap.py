@@ -1,5 +1,8 @@
 """Buoc 4: Doc file pcap bang Scapy - trich thong tin co ban moi goi tin."""
+from pathlib import Path
 from scapy.all import rdpcap, IP, TCP, UDP, ICMP
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 def describe_pcap(path, n=10):
     pkts = rdpcap(path)
@@ -28,6 +31,6 @@ def describe_pcap(path, n=10):
             print(f"[{i}] t={ts:.3f} non-IP | {p.summary()} | size={size}")
 
 if __name__ == "__main__":
-    describe_pcap(r"D:\PATTT\data\raw\attack-injection-hao123.pcap", n=10)
+    describe_pcap(str(BASE_DIR / "data" / "raw" / "attack-injection-hao123.pcap"), n=10)
     print()
-    describe_pcap(r"D:\PATTT\data\raw\attack-injection-id1cn.pcap", n=10)
+    describe_pcap(str(BASE_DIR / "data" / "raw" / "attack-injection-id1cn.pcap"), n=10)
