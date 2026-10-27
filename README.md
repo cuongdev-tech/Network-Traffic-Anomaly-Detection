@@ -22,13 +22,15 @@ Mình làm một pipeline phát hiện tấn công mạng đơn giản: đọc f
 - Lấy mẫu stratified 60k dòng, 77 đặc trưng số, chia train/test 70/30.
 - Train 3 mô hình baseline: Logistic Regression, Decision Tree, KNN.
 
-| Mô hình | Accuracy | Precision | Recall | F1 (weighted) |
-|---|---|---|---|---|
-| Decision Tree | 0.9992 | 0.9992 | 0.9992 | 0.9992 |
-| KNN | 0.9990 | 0.9990 | 0.9990 | 0.9990 |
-| Logistic Regression | 0.9966 | 0.9966 | 0.9966 | 0.9966 |
+| Mô hình | Accuracy | Precision | Recall | F1 (weighted) | F1 5-fold CV |
+|---|---|---|---|---|---|
+| Decision Tree | 0.9992 | 0.9992 | 0.9992 | 0.9992 | 0.9992 ± 0.0004 |
+| KNN | 0.9990 | 0.9990 | 0.9990 | 0.9990 | 0.9991 ± 0.0003 |
+| Logistic Regression | 0.9966 | 0.9966 | 0.9966 | 0.9966 | 0.9961 ± 0.0007 |
 
-Kết quả lưu ở `results/baselines_metrics.csv` và `results/cm_*.png`.
+Kết quả lưu ở `results/baselines_metrics.csv`, `results/baselines_cv.csv`, `results/baselines_per_class.csv` và `results/cm_*.png`.
+
+EDA trên CIC-IDS2017 (`src/eda_cicids.py`): PortScan có duration trung vị 47 micro-giây và quét 1,000 port; DDoS flow kéo dài ~1.9 giây; BENIGN đa dạng port nhất. Hình lưu ở `results/eda_cicids/`.
 
 ### Tải dữ liệu CIC-IDS2017
 
@@ -49,6 +51,7 @@ python src/pcap_to_flows.py
 python src/label_flows.py
 python src/train_classifier.py
 python src/train_baselines.py --sample 60000
+python src/eda_cicids.py
 ```
 
-Notebook để xem từng bước: `notebooks/01_explore_pcap.ipynb`, `02_flow_features.ipynb`, `03_eda_classification.ipynb`, `04_baselines.ipynb`.
+Notebook để xem từng bước: `notebooks/01_explore_pcap.ipynb`, `02_flow_features.ipynb`, `03_eda_classification.ipynb`, `04_baselines.ipynb`, `05_eda_cicids.ipynb`.

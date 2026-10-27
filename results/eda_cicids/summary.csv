@@ -1,0 +1,4 @@
+Label,n_flows,duration_mean_us,duration_median_us,bytes_per_s_median,fwd_pkts_mean,bwd_pkts_mean,syn_mean,rst_mean,n_dst_ports
+BENIGN,224978,13439249.53,50195.5,4270.1,6.05,6.51,0.06,0.0,30794
+DDoS,128025,16955856.65,1878984.0,160.1,4.47,3.26,0.0,0.0,4
+PortScan,158804,82885.94,47.0,139534.88,1.02,1.0,0.0,0.0,1000

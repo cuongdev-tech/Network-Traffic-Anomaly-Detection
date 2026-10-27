@@ -20,9 +20,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold, cross_validate
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.pipeline import Pipeline
+from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -117,6 +118,13 @@ def evaluate(name, model, Xtr, Xte, ytr, yte):
         "predict_time_s": round(pred_time, 2),
     }
 
+    # Chi so tung lop
+    per_class = pd.DataFrame(
+        classification_report(yte, pred, output_dict=True, zero_division=0)
+    ).T.reset_index().rename(columns={"index": "class"})
+    per_class.insert(0, "model", name)
+    per_class = per_class[per_class["class"].isin([str(c) for c in np.unique(yte)])]
+
     print(f"\n=== {name} ===")
     print(f"Accuracy : {metrics['accuracy']:.4f}")
     print(f"Precision: {metrics['precision_weighted']:.4f} (weighted) | "
@@ -141,13 +149,15 @@ def evaluate(name, model, Xtr, Xte, ytr, yte):
     plt.savefig(OUT_DIR / f"cm_{name}.png", dpi=150)
     plt.close()
 
-    return metrics, pred
+    return metrics, per_class
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sample", type=int, default=60000,
                     help="So dong lay mau (0 = dung toan bo). Mac dinh 60000 de KNN chay nhanh.")
+    ap.add_argument("--cv", action="store_true",
+                    help="Chay them 5-fold cross-validation de kiem tra do on dinh.")
     args = ap.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -174,18 +184,46 @@ def main():
     print(f"Train: {len(Xtr):,} | Test: {len(Xte):,}")
 
     results = []
+    per_class_frames = []
+    cv_rows = []
     for name, model in build_models().items():
-        metrics, _ = evaluate(name, model, Xtr, Xte, ytr, yte)
+        metrics, per_class = evaluate(name, model, Xtr, Xte, ytr, yte)
         results.append(metrics)
+        per_class_frames.append(per_class)
         joblib.dump({"model": model, "labels": list(le.classes_),
                      "features": list(X.columns)},
                     MODEL_DIR / f"baseline_{name}.joblib")
+
+        if args.cv:
+            print(f"  5-fold CV cho {name}...")
+            cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+            scores = cross_validate(
+                clone(model), X, y, cv=cv, n_jobs=1,
+                scoring=["accuracy", "f1_macro", "precision_macro", "recall_macro"],
+            )
+            row = {"model": name}
+            for key in ["accuracy", "f1_macro", "precision_macro", "recall_macro"]:
+                s = scores[f"test_{key}"]
+                row[f"cv_{key}_mean"] = round(float(s.mean()), 4)
+                row[f"cv_{key}_std"] = round(float(s.std()), 4)
+            cv_rows.append(row)
+            print(f"  CV F1-macro: {row['cv_f1_macro_mean']:.4f} "
+                  f"(+/- {row['cv_f1_macro_std']:.4f})")
 
     res = pd.DataFrame(results).sort_values("f1_weighted", ascending=False)
     res.to_csv(OUT_DIR / "baselines_metrics.csv", index=False)
     print("\n=== Bang so sanh ===")
     print(res[["model", "accuracy", "precision_weighted", "recall_weighted",
                "f1_weighted", "f1_macro", "train_time_s"]].to_string(index=False))
+
+    pd.concat(per_class_frames, ignore_index=True).to_csv(
+        OUT_DIR / "baselines_per_class.csv", index=False)
+
+    if cv_rows:
+        cv_df = pd.DataFrame(cv_rows)
+        cv_df.to_csv(OUT_DIR / "baselines_cv.csv", index=False)
+        print("\n=== 5-fold cross-validation ===")
+        print(cv_df.to_string(index=False))
 
     # Bieu do so sanh
     ax = res.set_index("model")[["accuracy", "precision_weighted",

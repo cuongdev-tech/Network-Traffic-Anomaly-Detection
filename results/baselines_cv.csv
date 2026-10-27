@@ -1,0 +1,4 @@
+model,cv_accuracy_mean,cv_accuracy_std,cv_f1_macro_mean,cv_f1_macro_std,cv_precision_macro_mean,cv_precision_macro_std,cv_recall_macro_mean,cv_recall_macro_std
+LogisticRegression,0.9959,0.0007,0.9961,0.0007,0.9955,0.0008,0.9966,0.0006
+DecisionTree,0.9992,0.0004,0.9992,0.0004,0.9992,0.0004,0.9993,0.0003
+KNN,0.9991,0.0003,0.9991,0.0003,0.9991,0.0003,0.9991,0.0003
