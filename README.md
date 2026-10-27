@@ -16,6 +16,30 @@ Mình làm một pipeline phát hiện tấn công mạng đơn giản: đọc f
 - Vẽ EDA trong notebook 03: nhóm suspicious thường ngắn dưới 6 giây, cờ RST cao hẳn, còn nhóm normal thì flow dài và ổn định hơn.
 - Train thử Random Forest (100 cây) trên tập nhỏ này, test 4 mẫu đạt 1.0. Nói trước là tập có 11 mẫu nên con số này chỉ để kiểm tra pipeline chạy thông suốt, chưa có ý nghĩa thống kê.
 
+## Giai đoạn 3 — Baseline trên bộ dữ liệu thứ hai (CIC-IDS2017)
+
+- Tải 2 file Friday afternoon của CIC-IDS2017 (`DDoS`, `PortScan`) từ Hugging Face, gộp được 570k flow, 3 lớp `BENIGN / DDoS / PortScan`.
+- Lấy mẫu stratified 60k dòng, 77 đặc trưng số, chia train/test 70/30.
+- Train 3 mô hình baseline: Logistic Regression, Decision Tree, KNN.
+
+| Mô hình | Accuracy | Precision | Recall | F1 (weighted) |
+|---|---|---|---|---|
+| Decision Tree | 0.9992 | 0.9992 | 0.9992 | 0.9992 |
+| KNN | 0.9990 | 0.9990 | 0.9990 | 0.9990 |
+| Logistic Regression | 0.9966 | 0.9966 | 0.9966 | 0.9966 |
+
+Kết quả lưu ở `results/baselines_metrics.csv` và `results/cm_*.png`.
+
+### Tải dữ liệu CIC-IDS2017
+
+```bash
+# Tải 2 file vào data/raw/cicids2017/
+curl -L -o data/raw/cicids2017/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv \
+  https://huggingface.co/datasets/c01dsnap/CIC-IDS2017/resolve/main/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
+curl -L -o data/raw/cicids2017/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv \
+  https://huggingface.co/datasets/c01dsnap/CIC-IDS2017/resolve/main/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv
+```
+
 ## Chạy lại thế nào
 
 ```bash
@@ -24,6 +48,7 @@ python src/explore_pcap.py
 python src/pcap_to_flows.py
 python src/label_flows.py
 python src/train_classifier.py
+python src/train_baselines.py --sample 60000
 ```
 
-Notebook để xem từng bước: `notebooks/01_explore_pcap.ipynb`, `02_flow_features.ipynb`, `03_eda_classification.ipynb`.
+Notebook để xem từng bước: `notebooks/01_explore_pcap.ipynb`, `02_flow_features.ipynb`, `03_eda_classification.ipynb`, `04_baselines.ipynb`.

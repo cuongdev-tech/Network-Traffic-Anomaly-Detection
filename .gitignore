@@ -3,3 +3,9 @@ __pycache__/
 .ipynb_checkpoints/
 .venv/
 venv/
+
+# Dataset lon, tai theo huong dan trong README
+data/raw/cicids2017/
+
+# Model KNN ~25MB, train lai bang script
+models/baseline_KNN.joblib

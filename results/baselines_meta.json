@@ -1,0 +1,12 @@
+{
+  "dataset": "CIC-IDS2017 Friday afternoon (DDoS + PortScan)",
+  "rows_used": 60000,
+  "features": 77,
+  "classes": [
+    "BENIGN",
+    "DDoS",
+    "PortScan"
+  ],
+  "train": 42000,
+  "test": 18000
+}
