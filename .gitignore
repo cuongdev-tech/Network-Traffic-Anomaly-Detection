@@ -4,8 +4,17 @@ __pycache__/
 .venv/
 venv/
 
-# Dataset lon, tai theo huong dan trong README
+# Keep the raw datasets used by this project versioned, but ignore other raw files.
 data/raw/cicids2017/
+!data/raw/cicids2017/
+data/raw/cicids2017/*
+!data/raw/cicids2017/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
+!data/raw/cicids2017/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv
+
 data/raw/unsw_nb15/
+!data/raw/unsw_nb15/
+data/raw/unsw_nb15/*
+!data/raw/unsw_nb15/UNSW_NB15_training-set.parquet
+!data/raw/unsw_nb15/UNSW_NB15_testing-set.parquet
 
 # Model KNN ~25MB, train lai bang script

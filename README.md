@@ -14,15 +14,7 @@ Gộp 2 file Friday afternoon (DDoS + PortScan), sau khi bỏ NaN/inf còn **511
 | PortScan | 158.804 |
 | DDoS | 128.025 |
 
-Tải dữ liệu (2 file ~147 MB, không nằm trong git):
-
-```bash
-mkdir -p data/raw/cicids2017
-curl -L -o data/raw/cicids2017/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv \
-  https://huggingface.co/datasets/c01dsnap/CIC-IDS2017/resolve/main/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
-curl -L -o data/raw/cicids2017/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv \
-  https://huggingface.co/datasets/c01dsnap/CIC-IDS2017/resolve/main/Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv
-```
+Hai CSV Friday afternoon (~147 MB tổng cộng) được lưu trong Git tại `data/raw/cicids2017/`; sau khi clone/pull không cần tải lại. Nguồn dữ liệu: [CIC-IDS2017 trên Hugging Face](https://huggingface.co/datasets/c01dsnap/CIC-IDS2017), do Canadian Institute for Cybersecurity phát hành. Khi sử dụng, vui lòng trích dẫn bài báo của Sharafaldin, Lashkari và Ghorbani (ICISSP 2018), “Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization”.
 
 ## Giai đoạn 1 — Chuẩn bị dữ liệu
 
@@ -89,7 +81,7 @@ Xtr, Xte, ytr, yte = train_test_split(
 
 ## Baseline bổ sung — UNSW-NB15
 
-Ba baseline Logistic Regression, Decision Tree và KNN cũng có thể chạy trên [UNSW-NB15 của Kaggle](https://www.kaggle.com/datasets/dhoogla/unswnb15), với nhãn nhị phân `label` (BENIGN/ATTACK). Tải hai file `UNSW_NB15_training-set.parquet` và `UNSW_NB15_testing-set.parquet` vào `data/raw/unsw_nb15/`. Giữ nguyên split train/test chính thức; mặc định lấy mẫu phân tầng tổng cộng 60.000 dòng để KNN có thời gian chạy hợp lý.
+Ba baseline Logistic Regression, Decision Tree và KNN cũng có thể chạy trên [UNSW-NB15 của Kaggle](https://www.kaggle.com/datasets/dhoogla/unswnb15), với nhãn nhị phân `label` (BENIGN/ATTACK). Hai file Parquet `UNSW_NB15_training-set.parquet` và `UNSW_NB15_testing-set.parquet` được lưu trong Git tại `data/raw/unsw_nb15/`; sau khi clone/pull không cần tải lại. Giữ nguyên split train/test chính thức; mặc định lấy mẫu phân tầng tổng cộng 60.000 dòng để KNN có thời gian chạy hợp lý.
 
 ```bash
 python src/train_unsw_baselines.py
@@ -105,7 +97,7 @@ Lần chạy hiện tại dùng 42.000 dòng train và 18.000 dòng test, với 
 | KNN | 0.8323 | 0.8274 | 0.8234 |
 | Logistic Regression | 0.8016 | 0.7993 | 0.7958 |
 
-Kết quả và biểu đồ lưu ở `results/unsw_nb15/`; ba model lưu riêng ở `models/unsw_nb15/`, không ghi đè model CIC. File Parquet cần thư viện `pyarrow`, đã khai báo trong `requirements.txt`. Dataset Kaggle có giấy phép CC BY-NC-SA 4.0; xem trang dataset để biết yêu cầu ghi nguồn và trích dẫn.
+Kết quả và biểu đồ lưu ở `results/unsw_nb15/`; ba model lưu riêng ở `models/unsw_nb15/`, không ghi đè model CIC. File Parquet cần thư viện `pyarrow`, đã khai báo trong `requirements.txt`. Dataset Kaggle có giấy phép CC BY-NC-SA 4.0; cần ghi công Laurens D'Hooge và các tác giả gốc Nour Moustafa, Jill Slay, đồng thời tuân thủ điều khoản phi thương mại và chia sẻ tương tự. Tham khảo bài báo gốc “UNSW-NB15: a comprehensive data set for network intrusion detection systems” (Moustafa & Slay, 2015).
 
 EDA riêng cho UNSW-NB15 dùng cả hai split chính thức và lưu bảng thống kê/biểu đồ tại `results/eda_unsw_nb15/`. Báo cáo EDA cũng kiểm tra feature trùng giữa hai split trong `split_feature_overlap.csv`; các bản ghi test trùng đặc trưng với train có thể làm kết quả đánh giá lạc quan hơn:
 
