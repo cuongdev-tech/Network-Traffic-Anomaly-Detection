@@ -1,0 +1,6 @@
+metric,count,percent_of_split
+distinct_feature_signatures_in_both_splits,1487,
+train_rows_with_feature_signature_in_test,50708,28.92
+test_rows_with_feature_signature_in_train,20851,25.33
+train_duplicate_feature_rows,83243,47.47
+test_duplicate_feature_rows,34101,41.42

@@ -1,0 +1,13 @@
+{
+  "dataset": "UNSW-NB15 (Kaggle dhoogla/unswnb15)",
+  "target": "label (BENIGN vs ATTACK)",
+  "split": "official training-set/testing-set",
+  "sampled_rows": 60000,
+  "train": 42000,
+  "test": 18000,
+  "features": 34,
+  "classes": [
+    "ATTACK",
+    "BENIGN"
+  ]
+}

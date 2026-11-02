@@ -1,0 +1,2 @@
+dataset,source,rows,train_rows,test_rows,feature_columns,numeric_features,categorical_features,missing_values,infinite_numeric_values,duplicate_rows,distinct_feature_signatures_in_both_splits,test_rows_with_feature_signature_in_train,test_rows_with_feature_signature_in_train_percent
+UNSW-NB15,Kaggle dhoogla/unswnb15,257673,175341,82332,34,31,3,0,0,110880,1487,20851,25.33

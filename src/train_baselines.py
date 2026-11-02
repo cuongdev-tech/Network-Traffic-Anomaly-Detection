@@ -33,7 +33,7 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "raw" / "cicids2017"
 OUT_DIR = BASE_DIR / "results"
-MODEL_DIR = BASE_DIR / "models"
+MODEL_DIR = BASE_DIR / "models" / "cic"
 
 FILES = [
     "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
@@ -155,7 +155,11 @@ def evaluate(name, model, Xtr, Xte, ytr, yte):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sample", type=int, default=60000,
-                    help="So dong lay mau (0 = dung toan bo). Mac dinh 60000 de KNN chay nhanh.")
+                    help="So dong lay mau khi doc truc tiep tu raw (0 = toan bo).")
+    ap.add_argument("--raw", action="store_true",
+                    help="Bo qua file data/processed/cicids_60k.csv.gz, doc lai tu CSV goc.")
+    ap.add_argument("--data", type=str, default=None,
+                    help="Duong dan file CSV/CSV.GZ da chuan bi san.")
     ap.add_argument("--cv", action="store_true",
                     help="Chay them 5-fold cross-validation de kiem tra do on dinh.")
     args = ap.parse_args()
@@ -164,14 +168,23 @@ def main():
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Doc du lieu CIC-IDS2017...")
-    data = load_data()
-
-    if args.sample and args.sample > 0:
-        data = sample_stratified(data, args.sample)
-        print(f"\nLay mau {len(data):,} dong (stratified).")
+    prepared = BASE_DIR / "data" / "processed" / "cicids_60k.csv.gz"
+    if args.data:
+        data = pd.read_csv(args.data)
+        print(f"  Dung file chuan bi san: {args.data} ({len(data):,} dong)")
+    elif prepared.exists() and not args.raw:
+        data = pd.read_csv(prepared)
+        print(f"  Dung file chuan bi san: {prepared} ({len(data):,} dong)")
+    else:
+        data = load_data()
+        if args.sample and args.sample > 0:
+            data = sample_stratified(data, args.sample)
+            print(f"\nLay mau {len(data):,} dong (stratified).")
+        else:
+            print(f"\nDung toan bo {len(data):,} dong.")
 
     y_text = data["Label"]
-    X = data.drop(columns=["Label", "source_file"])
+    X = data.drop(columns=["Label", "source_file"], errors="ignore")
     X = X.select_dtypes(include=[np.number])
     print(f"So dac trung: {X.shape[1]}")
 
