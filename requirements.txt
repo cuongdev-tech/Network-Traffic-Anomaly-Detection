@@ -8,3 +8,4 @@ dpkt
 jupyter
 joblib
 pyarrow
+xgboost

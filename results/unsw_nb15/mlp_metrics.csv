@@ -1,0 +1,2 @@
+model,accuracy,precision_weighted,recall_weighted,f1_weighted,f1_macro,train_time_s,predict_time_s,dataset
+MLP,0.9191666666666667,0.9198702375272159,0.9191666666666667,0.9194113814493688,0.9129283818885768,49.91,0.14,unsw
