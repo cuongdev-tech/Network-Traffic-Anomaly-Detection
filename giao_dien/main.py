@@ -12,8 +12,8 @@ from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFrame, QGraphicsPixmapItem, QGraphicsScene,
     QGraphicsView, QHBoxLayout, QHeaderView, QLabel, QListWidget, QMainWindow,
-    QPushButton, QSplitter, QStackedWidget, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QPushButton, QSplitter, QStackedWidget, QTabWidget, QTableWidget,
+    QTableWidgetItem, QTextBrowser, QVBoxLayout, QWidget,
 )
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
@@ -21,8 +21,9 @@ from matplotlib import get_data_path
 from matplotlib.ticker import PercentFormatter
 
 from giao_dien.data import (
-    DATASETS, METRICS, MODEL_NAMES, confusion_path, load_results, per_class,
-    read_csv, result_dir,
+    BEHAVIOR_ANALYSIS_HTML, DATASETS, EDA_DESCRIPTIONS, FEATURE_IMPORTANCE,
+    METRICS, MODEL_NAMES, confusion_path, eda_label, load_results,
+    localize_eda_table, per_class, read_csv, result_dir,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -172,7 +173,7 @@ class Dashboard(QMainWindow):
         side.addSpacing(12)
         self.navigation = QListWidget()
         self.navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.navigation.addItems(["So sánh mô hình", "Chi tiết mô hình", "EDA dữ liệu"])
+        self.navigation.addItems(["So sánh mô hình", "Chi tiết mô hình", "EDA dữ liệu", "Phân tích đặc trưng"])
         self.navigation.setCurrentRow(0)
         side.addWidget(self.navigation)
         side.addWidget(label("Kết quả lưu trên máy\nCIC-IDS2017 / UNSW-NB15", "muted", True))
@@ -196,6 +197,7 @@ class Dashboard(QMainWindow):
         self.build_comparison()
         self.build_details()
         self.build_eda()
+        self.build_features()
         outer.addWidget(sheet, 1)
         self.navigation.currentRowChanged.connect(self.change_page)
         self.dataset.currentIndexChanged.connect(self.refresh)
@@ -292,12 +294,16 @@ class Dashboard(QMainWindow):
             box.addWidget(choice)
             if kind == "image":
                 self.eda_image_choice, self.eda_image = choice, ImageView()
+                self.eda_image_desc = label("", "notice", True)
+                box.addWidget(self.eda_image_desc)
                 box.addWidget(self.eda_image, 1)
                 button = QPushButton("Mở hình kích thước gốc")
                 button.clicked.connect(lambda: self.open_image(self.eda_image))
                 box.addWidget(button)
             else:
                 self.eda_table_choice, self.eda_table = choice, table_widget()
+                self.eda_table_desc = label("", "notice", True)
+                box.addWidget(self.eda_table_desc)
                 box.addWidget(self.eda_table, 1)
                 self.eda_error = label("", "error", True)
                 box.addWidget(self.eda_error)
@@ -306,6 +312,68 @@ class Dashboard(QMainWindow):
         layout.addWidget(panes, 1)
         self.eda_image_choice.currentIndexChanged.connect(self.update_eda_image)
         self.eda_table_choice.currentIndexChanged.connect(self.update_eda_table)
+        self.pages.addWidget(page)
+
+    def build_features(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+
+        self.features_summary = label("", "notice", True)
+        layout.addWidget(self.features_summary)
+
+        panes = QSplitter()
+
+        # Cột trái: Tab chứa Biểu đồ và Bảng tỷ trọng đặc trưng
+        left_panel = QWidget()
+        left_box = QVBoxLayout(left_panel)
+        left_box.setContentsMargins(0, 0, 8, 0)
+        left_box.addWidget(label("Độ quan trọng của đặc trưng (Feature Importance)", "section"))
+        
+        self.features_tab = QTabWidget()
+        
+        # Tab 1: Biểu đồ cột ngang
+        chart_widget = QWidget()
+        chart_layout = QVBoxLayout(chart_widget)
+        chart_layout.setContentsMargins(4, 4, 4, 4)
+        self.features_figure = Figure(figsize=(5.5, 4.8), dpi=100)
+        self.features_canvas = FigureCanvasQTAgg(self.features_figure)
+        chart_layout.addWidget(self.features_canvas)
+        self.features_tab.addTab(chart_widget, "Biểu đồ cột")
+
+        # Tab 2: Bảng số liệu Top 10
+        table_widget_panel = QWidget()
+        table_layout = QVBoxLayout(table_widget_panel)
+        table_layout.setContentsMargins(4, 4, 4, 4)
+        self.features_table = table_widget()
+        table_layout.addWidget(self.features_table)
+        self.features_tab.addTab(table_widget_panel, "Bảng Top 10")
+
+        left_box.addWidget(self.features_tab, 1)
+        panes.addWidget(left_panel)
+
+        # Cột phải: Phân tích hành vi chi tiết theo từng lớp (dạng báo cáo ATTT)
+        right_panel = QWidget()
+        right_box = QVBoxLayout(right_panel)
+        right_box.setContentsMargins(8, 0, 0, 0)
+        right_box.addWidget(label("Phân tích hành vi chi tiết theo từng lớp (Báo cáo ATTT)", "section"))
+        
+        self.features_text = QTextBrowser()
+        self.features_text.setOpenExternalLinks(True)
+        self.features_text.setStyleSheet("""
+            QTextBrowser {
+                background-color: #ffffff;
+                border: 1px solid #d1d8e0;
+                border-radius: 6px;
+                padding: 10px;
+            }
+        """)
+        right_box.addWidget(self.features_text, 1)
+        panes.addWidget(right_panel)
+
+        panes.setSizes([460, 620])
+        layout.addWidget(panes, 1)
         self.pages.addWidget(page)
 
     def refresh(self):
@@ -334,12 +402,15 @@ class Dashboard(QMainWindow):
             choice.blockSignals(True)
             choice.clear()
             for path in sorted(eda.glob(f"*.{extension}")):
-                choice.addItem(path.stem.replace("_", " "), path)
+                choice.addItem(eda_label(path.stem), path)
+                choice.setItemData(choice.count() - 1, path.name, Qt.ItemDataRole.ToolTipRole)
             choice.blockSignals(False)
         self.eda_summary.setText(f"{DATASETS[dataset]} · Phân bố nhãn, đặc trưng và chất lượng dữ liệu. "
-                                 "EDA dùng dữ liệu gốc; các lần train mặc định lấy mẫu 60.000 dòng.")
+                                 "Tên đặc trưng và bảng thống kê hiển thị bằng tiếng Việt; "
+                                 "EDA dùng dữ liệu gốc, các lần train mặc định lấy mẫu 60.000 dòng.")
         self.update_eda_image()
         self.update_eda_table()
+        self.update_features()
 
     def update_comparison(self):
         frame = self.results.copy()
@@ -412,13 +483,87 @@ class Dashboard(QMainWindow):
         self.metadata.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
 
     def update_eda_image(self):
-        self.eda_image.show_path(self.eda_image_choice.currentData())
+        path = self.eda_image_choice.currentData()
+        self.eda_image.show_path(path)
+        if path:
+            desc = EDA_DESCRIPTIONS.get(Path(path).stem, "")
+            self.eda_image_desc.setText(desc)
+            self.eda_image_desc.setVisible(bool(desc))
+        else:
+            self.eda_image_desc.clear()
+            self.eda_image_desc.setVisible(False)
 
     def update_eda_table(self):
         path = self.eda_table_choice.currentData()
         frame, error = read_csv(path) if path else (pd.DataFrame(), "Chưa có bảng EDA. Chạy script EDA rồi làm mới.")
+        if not frame.empty:
+            frame = localize_eda_table(frame, Path(path).stem)
         fill_table(self.eda_table, frame)
+        if not frame.empty:
+            self.eda_table.horizontalHeader().setSectionResizeMode(
+                0, QHeaderView.ResizeMode.ResizeToContents)
         self.eda_error.setText(error)
+        if path and not error:
+            desc = EDA_DESCRIPTIONS.get(Path(path).stem, "")
+            self.eda_table_desc.setText(desc)
+            self.eda_table_desc.setVisible(bool(desc))
+        else:
+            self.eda_table_desc.clear()
+            self.eda_table_desc.setVisible(False)
+
+    def update_features(self):
+        dataset = self.dataset.currentData()
+        items = FEATURE_IMPORTANCE.get(dataset, [])
+        if not items:
+            return
+
+        dataset_name = DATASETS.get(dataset, dataset)
+        if dataset == "cic":
+            summary_text = (
+                f"{dataset_name} · Mô hình nhận diện tấn công chủ yếu dựa vào Kích thước gói tin (~24%) "
+                "và Tổng dung lượng byte gửi đi (~15%), kết hợp với Thời lượng luồng kết nối và khoảng cách gửi gói (IAT)."
+            )
+        else:
+            summary_text = (
+                f"{dataset_name} · Kẻ tấn công bị phát hiện chủ yếu qua Tải thông lượng nguồn sload (8.07%), "
+                "Tốc độ gửi gói rate (6.80%), Tổng số byte sbytes (6.27%) và Độ trễ bắt tay TCP synack/tcprtt (~8.9%)."
+            )
+        self.features_summary.setText(summary_text)
+
+        self.features_figure.clear()
+        ax = self.features_figure.add_subplot(111)
+        names = [item["feature"] for item in reversed(items)]
+        vals = [item["importance"] for item in reversed(items)]
+
+        bars = ax.barh(names, vals, color=ACCENT, height=0.55)
+        ax.set_xlabel("Tỷ trọng quyết định (%)", fontsize=10)
+        ax.set_title(f"Top 10 đặc trưng quyết định ({dataset_name})", fontsize=11, fontweight="bold", pad=10)
+        ax.grid(axis="x", linestyle="--", alpha=0.5)
+
+        for bar in bars:
+            width = bar.get_width()
+            ax.text(width + 0.15, bar.get_y() + bar.get_height() / 2, f"{width:.2f}%",
+                    va="center", ha="left", fontsize=9, color="#2c3e50")
+
+        ax.set_xlim(0, max(vals) * 1.3)
+        self.features_figure.tight_layout()
+        self.features_canvas.draw()
+
+        table_df = pd.DataFrame([
+            {
+                "Đặc trưng": item["feature"],
+                "Tỷ trọng": f"{item['importance']:.2f}%",
+                "Vai trò nhận diện tấn công": item["role"],
+            }
+            for item in items
+        ])
+        fill_table(self.features_table, table_df)
+        self.features_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.features_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.features_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+
+        # Cập nhật văn bản phân tích hành vi chi tiết theo lớp
+        self.features_text.setHtml(BEHAVIOR_ANALYSIS_HTML.get(dataset, ""))
 
     @staticmethod
     def open_image(view):

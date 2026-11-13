@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from giao_dien.data import load_results, per_class
+from giao_dien.data import eda_label, load_results, localize_eda_table, per_class
 
 
 class ResultTests(unittest.TestCase):
@@ -40,6 +40,22 @@ class ResultTests(unittest.TestCase):
                                               "_meta": {"classes": ["ATTACK", "BENIGN"]}})
             self.assertFalse(error)
             self.assertEqual(report["class"].tolist(), ["ATTACK"])
+
+    def test_eda_labels_and_feature_names(self):
+        self.assertEqual(eda_label("class_distribution"), "Phân bố số lượng các lớp")
+        categorical = localize_eda_table(
+            pd.DataFrame([{"feature": "proto", "value": "tcp", "count": 3, "percent": .5}]),
+            "categorical_feature_distribution")
+        self.assertEqual(categorical.columns.tolist(),
+                         ["Đặc trưng", "Giá trị", "Số lượng", "Phần trăm (%)"])
+        self.assertEqual(categorical.iloc[0]["Đặc trưng"], "Giao thức")
+        numeric = localize_eda_table(
+            pd.DataFrame([{"label": 1, "dur_mean": 2.0}]), "numeric_summary_by_label")
+        self.assertEqual(numeric.columns.tolist(), ["Nhãn", "Thời lượng TB (s)"])
+        self.assertEqual(numeric.iloc[0]["Nhãn"], "1 · Tấn công")
+        summary = localize_eda_table(
+            pd.DataFrame([{"Label": "BENIGN", "n_flows": 1}]), "summary")
+        self.assertEqual(summary.columns.tolist(), ["Nhãn", "Số luồng"])
 
 
 if __name__ == "__main__":
