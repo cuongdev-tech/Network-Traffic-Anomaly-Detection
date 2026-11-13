@@ -1,10 +1,11 @@
-"""Giai doan 3 - Phan baseline cua nhom: Logistic Regression, Decision Tree, KNN.
+"""Giai doan 3 - 5 mo hinh baseline: LR, DT, KNN, Random Forest, XGBoost.
 
 Du lieu: CIC-IDS2017 (Friday afternoon: DDoS + PortScan), gop thanh 3 lop
-BENIGN / DDoS / PortScan. Day la bo du lieu thu 2, ben canh NETRESEC o Giai doan 1.
+BENIGN / DDoS / PortScan. Day la bo du lieu chinh cua bao cao.
 
 Chay:
     python src/train_baselines.py
+    python src/train_baselines.py --cv
     python src/train_baselines.py --sample 120000
 """
 import argparse
@@ -27,6 +28,8 @@ from sklearn.base import clone
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              f1_score, confusion_matrix, classification_report)
 
@@ -80,7 +83,7 @@ def sample_stratified(df, n, seed=42):
 
 
 def build_models():
-    """3 mo hinh phan cong: LR, DT, KNN."""
+    """5 mo hinh baseline: LR, DT, KNN, Random Forest, XGBoost."""
     return {
         "LogisticRegression": Pipeline([
             ("scaler", StandardScaler()),
@@ -93,6 +96,13 @@ def build_models():
             ("scaler", StandardScaler()),
             ("clf", KNeighborsClassifier(n_neighbors=5, n_jobs=-1)),
         ]),
+        "RandomForest": RandomForestClassifier(n_estimators=300,
+                                               class_weight="balanced",
+                                               random_state=42, n_jobs=-1),
+        "XGBoost": XGBClassifier(n_estimators=300, max_depth=6, learning_rate=0.1,
+                                 subsample=0.9, colsample_bytree=0.9,
+                                 tree_method="hist", eval_metric="mlogloss",
+                                 random_state=42, n_jobs=-1),
     }
 
 
@@ -107,6 +117,7 @@ def evaluate(name, model, Xtr, Xte, ytr, yte):
 
     metrics = {
         "model": name,
+        "group": "baseline",
         "accuracy": accuracy_score(yte, pred),
         "precision_weighted": precision_score(yte, pred, average="weighted", zero_division=0),
         "recall_weighted": recall_score(yte, pred, average="weighted", zero_division=0),
@@ -205,7 +216,7 @@ def main():
         per_class_frames.append(per_class)
         joblib.dump({"model": model, "labels": list(le.classes_),
                      "features": list(X.columns)},
-                    MODEL_DIR / f"baseline_{name}.joblib")
+                    MODEL_DIR / f"baseline_{name}.joblib", compress=3)
 
         if args.cv:
             print(f"  5-fold CV cho {name}...")
@@ -244,7 +255,7 @@ def main():
         kind="bar", figsize=(9, 5))
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("Score")
-    ax.set_title("So sanh 3 mo hinh baseline (LR / DT / KNN) - CIC-IDS2017")
+    ax.set_title("So sanh 5 mo hinh baseline (LR / DT / KNN / RF / XGBoost) - CIC-IDS2017")
     plt.xticks(rotation=15)
     plt.tight_layout()
     plt.savefig(OUT_DIR / "baselines_compare.png", dpi=150)

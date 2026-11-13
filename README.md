@@ -35,19 +35,21 @@ Nhận xét chính:
 - **DDoS**: flow kéo dài (~1,9 giây), bytes/s thấp, chỉ nhắm 4 port.
 - **BENIGN**: đa dạng port nhất (30.794 port).
 
-## Giai đoạn 3 — Baseline Logistic Regression / Decision Tree / KNN
+## Giai đoạn 3 — 5 mô hình baseline: LR / Decision Tree / KNN / Random Forest / XGBoost
 
-`src/train_baselines.py` đọc `cicids_60k.csv.gz`, chia train/test 70/30 (stratified, seed 42), train 3 mô hình và chạy thêm 5-fold cross-validation.
+`src/train_baselines.py` đọc `cicids_60k.csv.gz`, chia train/test 70/30 (stratified, seed 42) cho **cả 5 mô hình**, và chạy thêm 5-fold cross-validation.
 
 | Mô hình | Accuracy | Precision | Recall | F1 weighted | F1 5-fold CV |
 |---|---|---|---|---|---|
+| XGBoost | 0.9999 | 0.9999 | 0.9999 | 0.9999 | 0.9998 ± 0.0001 |
+| Random Forest | 0.9995 | 0.9995 | 0.9995 | 0.9995 | 0.9996 ± 0.0001 |
 | Decision Tree | 0.9992 | 0.9992 | 0.9992 | 0.9992 | 0.9992 ± 0.0004 |
 | KNN | 0.9990 | 0.9990 | 0.9990 | 0.9990 | 0.9991 ± 0.0003 |
 | Logistic Regression | 0.9966 | 0.9966 | 0.9966 | 0.9966 | 0.9961 ± 0.0007 |
 
-Kết quả lưu ở `results/baselines_metrics.csv`, `baselines_cv.csv`, `baselines_per_class.csv`, `cm_*.png`, `baselines_compare.png`.
+Kết quả lưu ở `results/baselines_metrics.csv` (có cột `group = baseline`), `baselines_cv.csv`, `baselines_per_class.csv`, `cm_*.png`, `baselines_compare.png`.
 
-Random Forest cũng dùng chung `data/processed/cicids_60k.csv.gz` và split stratified 70/30 (seed 42). Chạy `python src/train_classifier.py`; model được lưu ở `models/cic/rf_attack.joblib`.
+`src/compare_baselines.py` gộp kết quả 2 bộ dữ liệu vào một bảng duy nhất: `results/baselines_all_datasets.csv`.
 
 Model CIC được lưu trong `models/cic/`; model UNSW-NB15 được lưu riêng trong `models/unsw_nb15/`.
 
@@ -58,6 +60,8 @@ pip install -r requirements.txt
 python src/prepare_cicids.py
 python src/eda_cicids.py
 python src/train_baselines.py --cv
+python src/train_unsw_baselines.py
+python src/compare_baselines.py
 python src/train_classifier.py
 ```
 
@@ -65,7 +69,7 @@ Notebook: `notebooks/04_baselines.ipynb`, `05_eda_cicids.ipynb`.
 
 ## Ghi chú cho thành viên khác
 
-XGBoost / MLP có thể dùng file `data/processed/cicids_60k.csv.gz` và cùng split:
+Baseline giờ đã có đủ 5 mô hình ở trên. Riêng **MLP** (học sâu) cần dùng đúng cùng split 70/30 để so sánh công bằng:
 
 ```python
 import pandas as pd
@@ -81,7 +85,7 @@ Xtr, Xte, ytr, yte = train_test_split(
 
 ## Baseline bổ sung — UNSW-NB15
 
-Ba baseline Logistic Regression, Decision Tree và KNN cũng có thể chạy trên [UNSW-NB15 của Kaggle](https://www.kaggle.com/datasets/dhoogla/unswnb15), với nhãn nhị phân `label` (BENIGN/ATTACK). Hai file Parquet `UNSW_NB15_training-set.parquet` và `UNSW_NB15_testing-set.parquet` được lưu trong Git tại `data/raw/unsw_nb15/`; sau khi clone/pull không cần tải lại. Giữ nguyên split train/test chính thức; mặc định lấy mẫu phân tầng tổng cộng 60.000 dòng để KNN có thời gian chạy hợp lý.
+Năm baseline Logistic Regression, Decision Tree, KNN, Random Forest và XGBoost cũng chạy trên [UNSW-NB15 của Kaggle](https://www.kaggle.com/datasets/dhoogla/unswnb15), với nhãn nhị phân `label` (BENIGN/ATTACK). Hai file Parquet `UNSW_NB15_training-set.parquet` và `UNSW_NB15_testing-set.parquet` được lưu trong Git tại `data/raw/unsw_nb15/`; sau khi clone/pull không cần tải lại. Giữ nguyên split train/test chính thức; mặc định lấy mẫu phân tầng tổng cộng 60.000 dòng để KNN có thời gian chạy hợp lý.
 
 ```bash
 python src/train_unsw_baselines.py
@@ -94,10 +98,12 @@ Lần chạy hiện tại dùng 42.000 dòng train và 18.000 dòng test, với 
 | Mô hình | Accuracy | F1 weighted | F1 macro |
 |---|---:|---:|---:|
 | Decision Tree | 0.8853 | 0.8848 | 0.8833 |
+| XGBoost | 0.8680 | 0.8651 | 0.8623 |
+| Random Forest | 0.8649 | 0.8618 | 0.8588 |
 | KNN | 0.8323 | 0.8274 | 0.8234 |
 | Logistic Regression | 0.8016 | 0.7993 | 0.7958 |
 
-Kết quả và biểu đồ lưu ở `results/unsw_nb15/`; ba model lưu riêng ở `models/unsw_nb15/`, không ghi đè model CIC. File Parquet cần thư viện `pyarrow`, đã khai báo trong `requirements.txt`. Dataset Kaggle có giấy phép CC BY-NC-SA 4.0; cần ghi công Laurens D'Hooge và các tác giả gốc Nour Moustafa, Jill Slay, đồng thời tuân thủ điều khoản phi thương mại và chia sẻ tương tự. Tham khảo bài báo gốc “UNSW-NB15: a comprehensive data set for network intrusion detection systems” (Moustafa & Slay, 2015).
+Kết quả và biểu đồ lưu ở `results/unsw_nb15/`; model lưu riêng ở `models/unsw_nb15/`, không ghi đè model CIC. File Parquet cần thư viện `pyarrow`, đã khai báo trong `requirements.txt`. Dataset Kaggle có giấy phép CC BY-NC-SA 4.0; cần ghi công Laurens D'Hooge và các tác giả gốc Nour Moustafa, Jill Slay, đồng thời tuân thủ điều khoản phi thương mại và chia sẻ tương tự. Tham khảo bài báo gốc “UNSW-NB15: a comprehensive data set for network intrusion detection systems” (Moustafa & Slay, 2015).
 
 EDA riêng cho UNSW-NB15 dùng cả hai split chính thức và lưu bảng thống kê/biểu đồ tại `results/eda_unsw_nb15/`. Báo cáo EDA cũng kiểm tra feature trùng giữa hai split trong `split_feature_overlap.csv`; các bản ghi test trùng đặc trưng với train có thể làm kết quả đánh giá lạc quan hơn:
 

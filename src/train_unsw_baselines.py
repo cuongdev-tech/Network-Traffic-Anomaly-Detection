@@ -1,4 +1,4 @@
-"""Train Logistic Regression, Decision Tree, and KNN on UNSW-NB15.
+"""Train 5 baseline models on UNSW-NB15: LR, DT, KNN, Random Forest, XGBoost.
 
 The official train/test split is preserved. By default, stratified subsets
 totaling 60,000 rows are used to keep KNN runtime comparable to the CIC run.
@@ -17,6 +17,7 @@ import pandas as pd
 import seaborn as sns
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -30,8 +31,9 @@ from sklearn.metrics import (
 from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
+from xgboost import XGBClassifier
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "raw" / "unsw_nb15"
@@ -180,10 +182,31 @@ def build_models(X):
             DecisionTreeClassifier(max_depth=20, class_weight="balanced", random_state=42)
         ),
         "KNN": pipeline(KNeighborsClassifier(n_neighbors=5, n_jobs=-1)),
+        "RandomForest": pipeline(
+            RandomForestClassifier(
+                n_estimators=300,
+                class_weight="balanced",
+                random_state=42,
+                n_jobs=-1,
+            )
+        ),
+        "XGBoost": pipeline(
+            XGBClassifier(
+                n_estimators=300,
+                max_depth=6,
+                learning_rate=0.1,
+                subsample=0.9,
+                colsample_bytree=0.9,
+                tree_method="hist",
+                eval_metric="logloss",
+                random_state=42,
+                n_jobs=-1,
+            )
+        ),
     }
 
 
-def evaluate(name, model, X_train, X_test, y_train, y_test):
+def evaluate(name, model, X_train, X_test, y_train, y_test, class_names=None):
     started = time.time()
     model.fit(X_train, y_train)
     train_time = time.time() - started
@@ -194,6 +217,7 @@ def evaluate(name, model, X_train, X_test, y_train, y_test):
 
     metrics = {
         "model": name,
+        "group": "baseline",
         "accuracy": accuracy_score(y_test, prediction),
         "precision_weighted": precision_score(
             y_test, prediction, average="weighted", zero_division=0
@@ -221,7 +245,12 @@ def evaluate(name, model, X_train, X_test, y_train, y_test):
         )
     ).T.reset_index().rename(columns={"index": "class"})
     report.insert(0, "model", name)
-    report = report[report["class"].isin(sorted(y_test.unique()))]
+    valid = [str(c) for c in sorted(pd.unique(y_test))]
+    report = report[report["class"].isin(valid)]
+    if class_names is not None:
+        report["class"] = report["class"].map(
+            lambda c: class_names[int(c)] if str(c).lstrip("-").isdigit() else c
+        )
 
     print(f"\n=== {name} ===")
     print(f"Accuracy : {metrics['accuracy']:.4f}")
@@ -238,14 +267,17 @@ def evaluate(name, model, X_train, X_test, y_train, y_test):
         f"{metrics['f1_macro']:.4f} (macro)"
     )
     print(f"Train {train_time:.1f}s | Predict {predict_time:.1f}s")
-    print(classification_report(y_test, prediction, zero_division=0))
+    print(classification_report(y_test, prediction, zero_division=0,
+                                target_names=class_names if class_names else None))
 
-    labels = sorted(y_test.unique())
+    labels = sorted(pd.unique(y_test))
     matrix = confusion_matrix(y_test, prediction, labels=labels)
+    tick_labels = ([class_names[label] for label in labels]
+                   if class_names is not None else labels)
     plt.figure(figsize=(6, 5))
     sns.heatmap(
         matrix, annot=True, fmt="d", cmap="Blues",
-        xticklabels=labels, yticklabels=labels,
+        xticklabels=tick_labels, yticklabels=tick_labels,
     )
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
@@ -277,14 +309,20 @@ def main():
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     train, test = load_data(sample=args.sample)
 
-    y_train = train["label"]
-    y_test = test["label"]
+    y_train_text = train["label"]
+    y_test_text = test["label"]
+    label_encoder = LabelEncoder()
+    y_train = pd.Series(label_encoder.fit_transform(y_train_text), index=train.index)
+    y_test = pd.Series(label_encoder.transform(y_test_text), index=test.index)
+    class_names = [str(c) for c in label_encoder.classes_]
     X_train = train.drop(columns=list(DROP_FEATURES), errors="ignore")
     X_test = test.drop(columns=list(DROP_FEATURES), errors="ignore")
     if X_train.columns.tolist() != X_test.columns.tolist():
         raise ValueError("Tap train va test khong co cung bo cot dac trung.")
     if y_train.nunique() != 2 or y_test.nunique() != 2:
         raise ValueError("Ca hai tap train va test phai co du hai lop BENIGN/ATTACK.")
+
+    print(f"Nhan: {dict(enumerate(class_names))}")
 
     print(f"So dac trung: {X_train.shape[1]}")
     print(f"Train: {len(X_train):,} | Test: {len(X_test):,}")
@@ -293,16 +331,18 @@ def main():
     per_class = []
     cv_rows = []
     for name, model in build_models(X_train).items():
-        metrics, report = evaluate(name, model, X_train, X_test, y_train, y_test)
+        metrics, report = evaluate(name, model, X_train, X_test, y_train, y_test,
+                                   class_names=class_names)
         results.append(metrics)
         per_class.append(report)
         joblib.dump(
             {
                 "model": model,
-                "labels": list(model.named_steps["classifier"].classes_),
+                "labels": class_names,
                 "features": list(X_train.columns),
             },
             MODEL_DIR / f"unsw_nb15_baseline_{name}.joblib",
+            compress=3,
         )
 
         if args.cv:
@@ -335,7 +375,7 @@ def main():
     ].plot(kind="bar", figsize=(9, 5))
     plt.ylim(0, 1.05)
     plt.ylabel("Score")
-    plt.title("UNSW-NB15 Baselines (LR / DT / KNN)")
+    plt.title("UNSW-NB15 Baselines (LR / DT / KNN / RF / XGBoost)")
     plt.xticks(rotation=15)
     plt.tight_layout()
     plt.savefig(OUT_DIR / "baselines_compare.png", dpi=150)
@@ -351,7 +391,7 @@ def main():
                 "train": int(len(train)),
                 "test": int(len(test)),
                 "features": int(X_train.shape[1]),
-                "classes": sorted(y_train.unique()),
+                "classes": class_names,
             },
             file,
             ensure_ascii=False,
