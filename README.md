@@ -47,7 +47,7 @@ Nhận xét chính:
 | KNN | 0.9990 | 0.9990 | 0.9990 | 0.9990 | 0.9991 ± 0.0003 |
 | Logistic Regression | 0.9966 | 0.9966 | 0.9966 | 0.9966 | 0.9961 ± 0.0007 |
 
-Kết quả lưu ở `results/baselines_metrics.csv` (có cột `group = baseline`), `baselines_cv.csv`, `baselines_per_class.csv`, `cm_*.png`, `baselines_compare.png`.
+Kết quả lưu ở `results/baselines_metrics.csv` (có cột `group = baseline`), `baselines_cv.csv`, `baselines_per_class.csv`, `cm_baseline_*.png`, `baselines_compare.png`.
 
 Model CIC được lưu trong `models/cic/`; model UNSW-NB15 được lưu riêng trong `models/unsw_nb15/`.
 

@@ -409,7 +409,13 @@ def load_results(root, dataset):
     return (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()), issues
 
 
+BASELINE_MODELS = {"LogisticRegression", "DecisionTree", "KNN", "RandomForest",
+                   "Random Forest", "XGBoost"}
+
+
 def confusion_path(folder, model):
+    if model in BASELINE_MODELS:
+        return Path(folder) / f"cm_baseline_{model.lower().replace(' ', '')}.png"
     slug = {"Random Forest": "random_forest", "XGBoost": "xgboost", "MLP": "mlp"}.get(model, model)
     return Path(folder) / f"cm_{slug}.png"
 

@@ -283,7 +283,7 @@ def evaluate(name, model, X_train, X_test, y_train, y_test, class_names=None):
     plt.ylabel("Actual")
     plt.title(f"UNSW-NB15 Confusion Matrix - {name}")
     plt.tight_layout()
-    plt.savefig(OUT_DIR / f"cm_{name}.png", dpi=150)
+    plt.savefig(OUT_DIR / f"cm_baseline_{name.lower()}.png", dpi=150)
     plt.close()
     return metrics, report
 

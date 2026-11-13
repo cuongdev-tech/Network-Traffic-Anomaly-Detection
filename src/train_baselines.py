@@ -157,7 +157,7 @@ def evaluate(name, model, Xtr, Xte, ytr, yte):
     plt.ylabel("Actual")
     plt.title(f"Confusion Matrix - {name}")
     plt.tight_layout()
-    plt.savefig(OUT_DIR / f"cm_{name}.png", dpi=150)
+    plt.savefig(OUT_DIR / f"cm_baseline_{name.lower()}.png", dpi=150)
     plt.close()
 
     return metrics, per_class
