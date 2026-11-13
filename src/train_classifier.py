@@ -2,7 +2,7 @@
 
 Chay: python src/train_classifier.py
 Input: data/processed/cicids_60k.csv.gz
-Output: models/cic/rf_attack.joblib
+Output: models/cic/random_forest_attack.joblib
 """
 from pathlib import Path
 
@@ -22,7 +22,7 @@ from sklearn.model_selection import train_test_split
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 IN = BASE_DIR / "data" / "processed" / "cicids_60k.csv.gz"
-MODEL = BASE_DIR / "models" / "cic" / "rf_attack.joblib"
+MODEL = BASE_DIR / "models" / "cic" / "random_forest_attack.joblib"
 
 
 def main():
