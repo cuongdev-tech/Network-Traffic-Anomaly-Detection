@@ -1,0 +1,44 @@
+{
+  "fit_train": 132964,
+  "validation": 14774,
+  "preprocessing": "Numeric quantiles + categorical embeddings; fitted on inner train only",
+  "selection_metric": "validation accuracy",
+  "max_epochs": 80,
+  "best_epoch": 71,
+  "epochs_run": 80,
+  "batch_size": 2048,
+  "virtual_batch_size": 256,
+  "n_d": 24,
+  "n_a": 24,
+  "n_steps": 4,
+  "validation_scores": {
+    "accuracy": 0.7971436307025856,
+    "f1_macro": 0.5149429934924579
+  },
+  "train_time_s": 902.45,
+  "incumbent_validation_scores": {
+    "accuracy": 0.7574116691485041,
+    "f1_macro": 0.41022072647522245
+  },
+  "promoted": true,
+  "dataset": "UNSW-NB15 (Normal + 9 Attack Categories)",
+  "rows_used": 184673,
+  "features": 34,
+  "classes": [
+    "Analysis",
+    "Backdoor",
+    "DoS",
+    "Exploits",
+    "Fuzzers",
+    "Generic",
+    "Normal",
+    "Reconnaissance",
+    "Shellcode",
+    "Worms"
+  ],
+  "train": 147738,
+  "test": 36935,
+  "split": "80/20 Stratified",
+  "architecture": "TabNet (Attentive Tabular Deep Learning)",
+  "evaluation_note": "Same random split as baselines; duplicate flow overlap is not removed."
+}

@@ -75,57 +75,59 @@ python src/train_random_forest_xgboost.py --dataset unsw --sample 0
 
 Kết quả lưu ở `results/random_forest_xgboost_metrics.csv`, `results/random_forest_xgboost_per_class.csv`, `results/random_forest_xgboost_compare.png`, `cm_random_forest.png`, `cm_xgboost.png`; nhánh UNSW tương tự trong `results/unsw_nb15/`.
 
-## Giai đoạn 5 — Mạng nơron MLP (CIC-IDS2017 + UNSW-NB15)
+## Luồng huấn luyện hiện tại — 5 model ML và TabNet
 
-`src/train_mlp.py` huấn luyện MLP với 2 lớp ẩn `(128, 64)`, ReLU, Adam, early stopping, cùng split **80/20** (stratified, seed 42) như Random Forest và XGBoost. Đặc trưng số dùng `QuantileTransformer(output_distribution="normal")`; UNSW-NB15 giữ imputer và one-hot cho biến phân loại. Learning rate là `0.0003` cho CIC và `0.001` cho UNSW, chờ 30 epoch không cải thiện trước khi dừng, tối đa 400 epoch.
+MLP đã được thay bằng **TabNet**. Dùng các script mới dưới đây; các mục baseline lấy mẫu 60k phía trên và phần UNSW nhị phân phía dưới là luồng cũ, không chạy lại để ghi đè model hiện tại.
 
-Cấu hình được chọn trên validation nằm trong tập train, gom các dòng trùng toàn bộ đặc trưng vào cùng nhóm để không xuất hiện ở cả hai phía của validation. Các thử nghiệm được lưu trong `results/mlp_validation_candidates.csv`; tập test 12.000 dòng của mỗi dataset được giữ nguyên để đối chiếu trước/sau trong `results/mlp_improvement.csv`.
-
-- Model: `models/cic/mlp_attack.joblib`, `models/unsw_nb15/mlp_attack.joblib`.
-- Kết quả: `results/mlp_metrics.csv`, `results/mlp_per_class.csv`, `results/mlp_meta.json`, `results/cm_mlp.png`; nhánh UNSW trong `results/unsw_nb15/`.
-- So sánh 3 mô hình: `results/all_models_metrics.csv`, `results/all_models_compare.png` (và nhánh UNSW).
+| Dataset | Dòng dùng | Train / test | Đặc trưng gốc | Lớp |
+|---|---:|---:|---:|---|
+| CIC | 511.807 | 409.445 / 102.362 | 77 | BENIGN, DDoS, PortScan |
+| UNSW | 184.673, sau giảm Normal còn 20.000 | 147.738 / 36.935 | 34 | Normal + 9 loại tấn công |
 
 ```bash
-python src/train_mlp.py --dataset cic
-python src/train_mlp.py --dataset unsw
-python src/train_mlp.py
+python src/train_full_cic.py --all
+python src/train_full_unsw.py --all
 ```
 
-| Bộ dữ liệu | Mô hình | Accuracy | F1 weighted | F1 macro |
-|---|---|---:|---:|---:|
-| CIC-IDS2017 | MLP | 0.9996 | 0.9996 | 0.9996 |
-| UNSW-NB15 | MLP | 0.9192 | 0.9194 | 0.9129 |
+CIC: LR/KNN/TabNet dùng StandardScaler; cây dùng đặc trưng số trực tiếp. UNSW: 5 model ML dùng imputer + StandardScaler + one-hot, fit trên train. TabNet UNSW dùng quantile cho cột số và embedding cho proto/service/state; tiền xử lý chỉ fit trên phần train bên trong sau khi tách validation. `models/unsw_nb15/preprocessor_bundle.joblib` là bộ tiền xử lý của các model ML cũ; TabNet dùng preprocessor riêng trong `tabnet_bundle.joblib`.
 
-Accuracy trước/sau lần tối ưu này: CIC **99,9417% → 99,9583%**, UNSW **91,4167% → 91,9167%**. Đây là kết quả trên split hiện tại; test vẫn có các dòng trùng đặc trưng với train và nhánh UNSW vẫn gộp hai file rồi chia lại. Vì vậy chưa dùng các điểm này để khẳng định hiệu quả trên lưu lượng mạng mới hoặc so sánh trực tiếp với baseline dùng split chính thức.
+Để cải thiện riêng TabNet UNSW mà giữ 5 model ML hiện tại:
+
+```bash
+python -m src.tune_tabnet_unsw --max-epochs 80 --threads 4
+```
+
+Lệnh giữ nguyên 10 lớp và split 80/20 hiện có, tách 10% phần train làm validation, batch 2.048, learning rate giảm mỗi 20 epoch và early stopping sau 15 epoch không cải thiện. Model mới chỉ thay model cũ khi validation accuracy tăng và macro F1 không giảm, sau đó mới đánh giá một lần trên test. Bản cũ được giữ trong `models/unsw_nb15/tabnet_before_tuning/` và `results/unsw_nb15/tabnet_before_tuning/`. Lịch sử học và đánh giá validation ghi ở `tabnet_tuning_history.csv`, `tabnet_tuning_validation.json`; so sánh test trước/sau ở `tabnet_improvement.csv`. File này mô tả kết quả đo, không dùng chọn cấu hình. Chạy toàn bộ UNSW qua `train_full_unsw.py` cũng dùng cấu hình TabNet mới.
+
+TabNet lưu trọng số ở `tabnet_attack.zip` cùng metadata/scaler hoặc preprocessor trong `tabnet_bundle.joblib`. Phần dự đoán nạp trọng số trên CPU, áp dụng đúng tiền xử lý trước khi predict. Kết quả ghi `baselines_metrics.csv`, `tabnet_metrics.csv`, `all_models_metrics.csv` và các bảng từng lớp/ảnh confusion matrix theo dataset.
+
+Đây vẫn là đánh giá offline; chưa khử triệt để mẫu trùng train/test và chưa có bắt gói realtime. Giảm riêng lớp Normal không đồng nghĩa cả 10 lớp đã cân bằng.
 
 ## Giao diện desktop — PySide6
 
-Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh sáu mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Giao diện đọc trực tiếp các file trong `results/`, không cần nạp model hoặc chạy huấn luyện.
+Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh sáu mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Dùng `giao_dien/mau_du_doan_cic.csv` để thử nhanh với dataset CIC và model TabNet; file mẫu không có nhãn và không dùng để đánh giá accuracy.
 
 ```bash
 python -m pip install -r giao_dien/requirements.txt
 python giao_dien/main.py
 ```
 
+Kết quả chính trên giao diện và cột `prediction_class` trong CSV là **Lớp dự đoán**: UNSW có **10 lớp**, gồm **Bình thường (Normal)** và **Analysis, Backdoor, DoS, Exploits, Fuzzers, Generic, Reconnaissance, Shellcode, Worms**. CIC có **Bình thường, DDoS, PortScan**. Cột `prediction` trong CSV giữ nhãn gốc model để đối chiếu; các cột cảnh báo 0/1 chỉ được giữ bổ sung trong CSV để tương thích, không thay thế kết quả phân loại 10 lớp.
+
 Chọn dataset rồi nhấn **Làm mới** sau khi chạy lại các script. Cột train/test cho biết cách chia dữ liệu của từng nhóm mô hình; các mô hình dùng split khác nhau cần được đánh giá lại trên cùng tập test trước khi kết luận mô hình tốt hơn.
 
 ## Chạy lại
 
 ```bash
-pip install -r requirements.txt
-python src/prepare_cicids.py
-python src/eda_cicids.py
-python src/train_baselines.py --cv
-python src/train_classifier.py
-python src/train_random_forest_xgboost.py
-python src/train_mlp.py
+python -m pip install -r requirements.txt -r giao_dien/requirements.txt
+python src/train_full_cic.py --all
+python src/train_full_unsw.py --all
+python giao_dien/main.py
 ```
-
-Notebook: `notebooks/04_baselines.ipynb`, `05_eda_cicids.ipynb`.
 
 ## Ghi chú cho thành viên khác
 
-Random Forest / XGBoost / MLP dùng file `data/processed/cicids_60k.csv.gz` và cùng split 80/20 dưới đây. Ba baseline hiện vẫn dùng split 70/30:
+Random Forest / XGBoost / TabNet dùng file `data/processed/cicids_60k.csv.gz` và cùng split 80/20 dưới đây. Các script cũ train_baselines.py vẫn dùng split 70/30; luồng train_full_* mới dùng 80/20 cho tất cả model:
 
 ```python
 import pandas as pd

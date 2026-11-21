@@ -1,0 +1,17 @@
+{
+  "dataset": "CIC-IDS2017 Friday afternoon (DDoS + PortScan)",
+  "rows_used": 511807,
+  "features": 77,
+  "classes": [
+    "BENIGN",
+    "DDoS",
+    "PortScan"
+  ],
+  "train": 409445,
+  "test": 102362,
+  "split": "80/20 Stratified",
+  "architecture": "TabNet (Attentive Tabular Deep Learning)",
+  "n_d": 24,
+  "n_a": 24,
+  "n_steps": 3
+}

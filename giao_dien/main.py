@@ -7,12 +7,12 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pandas as pd
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, QThread, Signal
 from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFrame, QGraphicsPixmapItem, QGraphicsScene,
     QGraphicsView, QHBoxLayout, QHeaderView, QLabel, QListWidget, QMainWindow,
-    QPushButton, QSplitter, QStackedWidget, QTabWidget, QTableWidget,
+    QPushButton, QSplitter, QStackedWidget, QTabWidget, QTableWidget, QFileDialog,
     QTableWidgetItem, QTextBrowser, QVBoxLayout, QWidget,
 )
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
@@ -25,6 +25,7 @@ from giao_dien.data import (
     METRICS, MODEL_NAMES, confusion_path, eda_label, load_results,
     localize_eda_table, per_class, read_csv, result_dir,
 )
+from giao_dien.prediction import model_paths, predict_file
 
 ROOT = Path(__file__).resolve().parent.parent
 ACCENT = "#1b6c80"
@@ -144,6 +145,21 @@ class ImageView(QGraphicsView):
         self.fitInView(self.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
 
+class PredictionWorker(QThread):
+    succeeded = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, root, dataset, model, path, parent):
+        super().__init__(parent)
+        self.arguments = root, dataset, model, path
+
+    def run(self):
+        try:
+            self.succeeded.emit(predict_file(*self.arguments))
+        except Exception as error:
+            self.failed.emit(str(error))
+
+
 class Dashboard(QMainWindow):
     def __init__(self, root=ROOT):
         super().__init__()
@@ -173,7 +189,7 @@ class Dashboard(QMainWindow):
         side.addSpacing(12)
         self.navigation = QListWidget()
         self.navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.navigation.addItems(["So sánh mô hình", "Chi tiết mô hình", "EDA dữ liệu", "Phân tích đặc trưng"])
+        self.navigation.addItems(["So sánh mô hình", "Chi tiết mô hình", "EDA dữ liệu", "Phân tích đặc trưng", "Dự đoán dữ liệu mới"])
         self.navigation.setCurrentRow(0)
         side.addWidget(self.navigation)
         side.addWidget(label("Kết quả lưu trên máy\nCIC-IDS2017 / UNSW-NB15", "muted", True))
@@ -198,6 +214,7 @@ class Dashboard(QMainWindow):
         self.build_details()
         self.build_eda()
         self.build_features()
+        self.build_prediction()
         outer.addWidget(sheet, 1)
         self.navigation.currentRowChanged.connect(self.change_page)
         self.dataset.currentIndexChanged.connect(self.refresh)
@@ -206,6 +223,119 @@ class Dashboard(QMainWindow):
     def change_page(self, index):
         self.pages.setCurrentIndex(index)
         self.title.setText(self.navigation.item(index).text())
+
+    def build_prediction(self):
+        self.prediction_result = pd.DataFrame()
+        self.prediction_path = None
+        self.prediction_worker = None
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
+        layout.addWidget(label(
+            "Nhập CSV/CSV.GZ có đúng các đặc trưng và đơn vị như dữ liệu huấn luyện. "
+            "Cột Lớp dự đoán trả về một lớp cụ thể: CIC có Bình thường/DDoS/PortScan; "
+            "UNSW có 10 lớp gồm Bình thường (Normal) và 9 loại tấn công. "
+            "Cột nhãn (nếu có) không dùng để dự đoán. PCAP cần trích đặc trưng trước.",
+            "notice", True))
+        controls = QHBoxLayout()
+        controls.addWidget(label("Model"))
+        self.prediction_model = QComboBox()
+        self.prediction_model.setAccessibleName("Model dự đoán")
+        controls.addWidget(self.prediction_model, 1)
+        self.pick_prediction = QPushButton("Chọn file dữ liệu…")
+        self.pick_prediction.clicked.connect(self.choose_prediction_file)
+        controls.addWidget(self.pick_prediction)
+        self.run_prediction = QPushButton("Dự đoán")
+        self.run_prediction.clicked.connect(self.start_prediction)
+        controls.addWidget(self.run_prediction)
+        layout.addLayout(controls)
+        self.prediction_file_label = label("Chưa chọn file dữ liệu.", "muted", True)
+        layout.addWidget(self.prediction_file_label)
+        self.prediction_status = label("Chọn bộ dữ liệu ở bên trái, model và file để bắt đầu.", "notice", True)
+        layout.addWidget(self.prediction_status)
+        self.prediction_table = table_widget()
+        layout.addWidget(self.prediction_table, 1)
+        layout.addWidget(label("Xác suất là điểm do model trả về, không phải độ chính xác đã được kiểm chứng.", "muted", True))
+        self.export_prediction = QPushButton("Xuất toàn bộ kết quả CSV…")
+        self.export_prediction.setEnabled(False)
+        self.export_prediction.clicked.connect(self.save_prediction)
+        layout.addWidget(self.export_prediction)
+        self.prediction_model.currentIndexChanged.connect(self.clear_prediction)
+        self.pages.addWidget(page)
+
+    def clear_prediction(self):
+        self.prediction_result = pd.DataFrame()
+        self.export_prediction.setEnabled(False)
+        fill_table(self.prediction_table, pd.DataFrame())
+        self.run_prediction.setEnabled(bool(self.prediction_path and self.prediction_model.count()))
+        self.prediction_status.setText("Sẵn sàng dự đoán." if self.prediction_path else "Chọn file CSV/CSV.GZ để bắt đầu.")
+
+    def choose_prediction_file(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Chọn dữ liệu mạng", str(self.root / "data"),
+                                            "Dữ liệu CSV (*.csv *.csv.gz)")
+        if path:
+            self.prediction_path = Path(path)
+            self.prediction_file_label.setText(str(self.prediction_path))
+            self.clear_prediction()
+
+    def start_prediction(self):
+        if not self.prediction_path or not self.prediction_model.currentData():
+            return
+        self.clear_prediction()
+        for control in (self.dataset, self.prediction_model, self.pick_prediction, self.run_prediction):
+            control.setEnabled(False)
+        self.prediction_status.setText("Đang kiểm tra dữ liệu và chạy model…")
+        self.prediction_worker = PredictionWorker(
+            self.root, self.dataset.currentData(), self.prediction_model.currentData(),
+            self.prediction_path, self)
+        self.prediction_worker.succeeded.connect(self.show_prediction)
+        self.prediction_worker.failed.connect(self.prediction_status.setText)
+        self.prediction_worker.finished.connect(self.finish_prediction)
+        self.prediction_worker.start()
+
+    def show_prediction(self, result):
+        self.prediction_result = result
+        preview = result.head(500).drop(columns=["prediction", "prediction_code", "prediction_status", "attack_type"]).rename(columns={
+            "prediction_class": "Lớp dự đoán",
+            "prediction_probability": "Xác suất model", "prediction_dataset": "Dataset",
+            "prediction_model": "Model"})
+        fill_table(self.prediction_table, preview, percentages=("Xác suất model",))
+        if "Xác suất model" in preview:
+            self.prediction_table.setColumnWidth(preview.columns.get_loc("Xác suất model"), 160)
+        self.export_prediction.setEnabled(True)
+        counts = "; ".join(f"{name}: {count:,}" for name, count in result.prediction_class.value_counts().items())
+        self.prediction_status.setText(f"Đã dự đoán {len(result):,} dòng · {counts}. "
+                                       f"Hiển thị {len(preview):,} dòng đầu; xuất CSV để xem toàn bộ. "
+                                       + result.attrs.get("model_warning", ""))
+
+    def finish_prediction(self):
+        for control in (self.dataset, self.prediction_model, self.pick_prediction):
+            control.setEnabled(True)
+        self.run_prediction.setEnabled(bool(self.prediction_path and self.prediction_model.count()))
+        self.prediction_worker.deleteLater()
+        self.prediction_worker = None
+
+    def save_prediction(self):
+        if self.prediction_result.empty:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Xuất kết quả", str(self.root / "predictions.csv"), "CSV (*.csv)")
+        if path:
+            if Path(path).resolve() == self.prediction_path.resolve():
+                self.prediction_status.setText("Chọn file xuất khác để không ghi đè dữ liệu đầu vào.")
+                return
+            try:
+                self.prediction_result.to_csv(path, index=False, encoding="utf-8-sig")
+                self.prediction_status.setText(f"Đã lưu {len(self.prediction_result):,} dòng vào {path}")
+            except OSError as error:
+                self.prediction_status.setText(f"Không lưu được kết quả: {error}")
+
+    def closeEvent(self, event):
+        if self.prediction_worker is not None and self.prediction_worker.isRunning():
+            self.prediction_status.setText("Đang dự đoán; hãy đợi hoàn tất trước khi đóng cửa sổ.")
+            event.ignore()
+        else:
+            super().closeEvent(event)
 
     def build_comparison(self):
         page = QWidget()
@@ -223,7 +353,7 @@ class Dashboard(QMainWindow):
         controls.addSpacing(12)
         controls.addWidget(label("Nhóm mô hình"))
         self.group = QComboBox()
-        self.group.addItems(["Tất cả", "Baseline", "RF / XGBoost và MLP"])
+        self.group.addItems(["Tất cả", "Baseline (5 mô hình ML)", "TabNet"])
         controls.addWidget(self.group)
         controls.addStretch()
         layout.addLayout(controls)
@@ -387,8 +517,8 @@ class Dashboard(QMainWindow):
         stamp = datetime.fromtimestamp(latest).strftime("%d/%m/%Y %H:%M") if latest else "Chưa có kết quả"
         self.freshness.setText(f"{DATASETS[dataset]}   ·   Cập nhật file: {stamp}")
         count = len(self.results)
-        self.notice.setText(f"{count} mô hình đã có kết quả. Baseline và RF/XGBoost/MLP dùng tập test khác nhau; "
-                            "điểm số giữa hai nhóm chưa phải phép so sánh cùng điều kiện.")
+        self.notice.setText(f"{count} mô hình đã có kết quả. 5 mô hình Baseline và TabNet (Deep Learning dạng bảng) "
+                            "được đánh giá trên cùng điều kiện phân chia 80% train / 20% test.")
         self.update_comparison()
         self.model_choice.blockSignals(True)
         self.model_choice.clear()
@@ -411,12 +541,19 @@ class Dashboard(QMainWindow):
         self.update_eda_image()
         self.update_eda_table()
         self.update_features()
+        if self.prediction_worker is None:
+            self.prediction_model.blockSignals(True)
+            self.prediction_model.clear()
+            for name in model_paths(self.root, dataset):
+                self.prediction_model.addItem(MODEL_NAMES[name], name)
+            self.prediction_model.blockSignals(False)
+            self.clear_prediction()
 
     def update_comparison(self):
         frame = self.results.copy()
         if not frame.empty and self.group.currentIndex():
-            mask = frame["_group"] == "Baseline"
-            frame = frame.loc[mask if self.group.currentIndex() == 1 else ~mask]
+            is_tabnet = frame["model"] == "TabNet"
+            frame = frame.loc[~is_tabnet if self.group.currentIndex() == 1 else is_tabnet]
         metric = self.metric_choice.currentData()
         self.figure.clear()
         ax = self.figure.add_subplot(111)

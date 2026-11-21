@@ -1,14 +1,20 @@
 {
-  "dataset": "UNSW-NB15 (BENIGN vs ATTACK)",
-  "source": "UNSW_NB15_training-set.parquet + UNSW_NB15_testing-set.parquet",
-  "rows": 60000,
+  "dataset": "UNSW-NB15 (10 loai: Normal + 9 Attack Categories)",
+  "rows_used": 184673,
   "features": 34,
   "classes": [
-    "ATTACK",
-    "BENIGN"
+    "Analysis",
+    "Backdoor",
+    "DoS",
+    "Exploits",
+    "Fuzzers",
+    "Generic",
+    "Normal",
+    "Reconnaissance",
+    "Shellcode",
+    "Worms"
   ],
-  "train": 48000,
-  "test": 12000,
-  "test_size": 0.2,
-  "split_seed": 42
+  "train": 147738,
+  "test": 36935,
+  "split": "80/20 Stratified"
 }

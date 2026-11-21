@@ -1,13 +1,20 @@
 {
-  "dataset": "UNSW-NB15 (Kaggle dhoogla/unswnb15)",
-  "target": "label (BENIGN vs ATTACK)",
-  "split": "official training-set/testing-set",
-  "sampled_rows": 60000,
-  "train": 42000,
-  "test": 18000,
+  "dataset": "UNSW-NB15 (10 loai: Normal + 9 Attack Categories)",
+  "rows_used": 184673,
   "features": 34,
   "classes": [
-    "ATTACK",
-    "BENIGN"
-  ]
+    "Analysis",
+    "Backdoor",
+    "DoS",
+    "Exploits",
+    "Fuzzers",
+    "Generic",
+    "Normal",
+    "Reconnaissance",
+    "Shellcode",
+    "Worms"
+  ],
+  "train": 147738,
+  "test": 36935,
+  "split": "80/20 Stratified"
 }

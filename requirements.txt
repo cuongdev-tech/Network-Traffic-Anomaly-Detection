@@ -9,3 +9,5 @@ jupyter
 joblib
 pyarrow
 xgboost
+torch
+pytorch-tabnet

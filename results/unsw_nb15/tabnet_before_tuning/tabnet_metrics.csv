@@ -1,0 +1,2 @@
+model,accuracy,precision_weighted,recall_weighted,f1_weighted,precision_macro,recall_macro,f1_macro,train_time_s,predict_time_s
+TabNet,0.754515,0.74125,0.754515,0.717353,0.48174,0.409428,0.405798,176.35,1.7
