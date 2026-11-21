@@ -1,0 +1,2 @@
+model,accuracy,f1_macro,test_errors,train_time_s,predict_time_s
+RealMLP,0.9998827689963072,0.9998887955256306,12,345.69,1.28

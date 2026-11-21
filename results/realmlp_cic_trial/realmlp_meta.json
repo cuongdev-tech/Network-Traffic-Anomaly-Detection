@@ -1,0 +1,89 @@
+{
+  "dataset": "CIC-IDS2017 Friday afternoon (DDoS + PortScan)",
+  "test_indices_sha256": "36a56128de7216db4d0c81fc4cf72f71bd27ca6c72014bead2571d978e681ed7",
+  "classes": [
+    "BENIGN",
+    "DDoS",
+    "PortScan"
+  ],
+  "fit_train": 368500,
+  "validation": 40945,
+  "test": 102362,
+  "validation_accuracy": 0.9999511539870558,
+  "selection": {
+    "best_epochs": [
+      [
+        12
+      ]
+    ],
+    "best_mean_epochs": [
+      12
+    ],
+    "val_metric_name": "class_error"
+  },
+  "implementation": "PyTabKit 1.8.0 standalone RealMLP-TD with CPU-sized width and batch",
+  "seed": 42,
+  "threads": 2,
+  "config": {
+    "n_hidden_layers": 3,
+    "hidden_width": 128,
+    "hidden_sizes": null,
+    "act": "selu",
+    "use_parametric_act": true,
+    "add_front_scale": true,
+    "num_emb_type": "pbld",
+    "plr_sigma": 0.1,
+    "plr_hidden_1": 8,
+    "plr_hidden_2": 4,
+    "max_one_hot_cat_size": 9,
+    "embedding_size": 8,
+    "scale_lr_factor": 6.0,
+    "scale_wd_factor": 6.0,
+    "first_layer_lr_factor": null,
+    "first_layer_wd_factor": null,
+    "bias_lr_factor": 0.1,
+    "bias_wd_factor": 0.0,
+    "act_lr_factor": 0.1,
+    "act_wd_factor": 0.1,
+    "plr_lr_factor": 0.1,
+    "plr_wd_factor": 0.1,
+    "p_drop": 0.05,
+    "p_drop_sched": "flat_cos",
+    "wd": 0.02,
+    "wd_sched": "flat_cos",
+    "use_ls": false,
+    "ls_eps": 0.1,
+    "ls_eps_sched": null,
+    "lr": 0.04,
+    "lr_sched": "coslog4",
+    "mom": 0.9,
+    "sq_mom": 0.95,
+    "n_epochs": 24,
+    "batch_size": 1024,
+    "predict_batch_size": 1024,
+    "normalize_output": true,
+    "clamp_output": true,
+    "n_ens": 1,
+    "ens_av_before_softmax": false,
+    "val_metric_name": "class_error",
+    "use_best_epoch": true,
+    "use_early_stopping": true,
+    "early_stopping_additive_patience": 6,
+    "early_stopping_multiplicative_patience": 1,
+    "verbosity": 1
+  },
+  "baseline": {
+    "accuracy": {
+      "model": "XGBoost",
+      "score": 0.999961
+    },
+    "f1_macro": {
+      "model": "XGBoost",
+      "score": 0.999963
+    }
+  },
+  "beats_baseline": {
+    "accuracy": false,
+    "f1_macro": false
+  }
+}

@@ -125,6 +125,15 @@ Chạy lại bằng `python -m src.train_tabr --dataset cic --max-epochs 12`. L�
 
 TabR đạt **99,9678% Accuracy** (33 lỗi), thấp hơn mốc XGBoost **99,9961%** (4 lỗi). Bảng chính thức và giao diện CIC dùng TabNet. Kết quả lượt thử được lưu riêng tại `results/tabr_cic_trial/`.
 
+### Thử nghiệm RealMLP trên CIC-IDS2017
+
+```bash
+python -m pip install pytabkit==1.8.0
+python -m src.train_realmlp_cic
+```
+
+RealMLP-TD của PyTabKit được cấu hình cho CPU và huấn luyện trên 368.500 dòng. Checkpoint được chọn theo Accuracy trên 40.945 dòng validation. Trên cùng 102.362 dòng test CIC, RealMLP đạt **99,9883% Accuracy** (12 lỗi), so với **99,9678%** của TabR (33 lỗi), **99,8837%** của TabNet (119 lỗi) và **99,9961%** của XGBoost (4 lỗi). Giao diện và bảng CIC chính thức dùng TabNet. Kết quả RealMLP lưu tại `results/realmlp_cic_trial/`.
+
 ## Giao diện desktop — PySide6
 
 Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh các mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Demo với TabR chọn UNSW-NB15 và `giao_dien/mau_du_doan_unsw.csv`. Demo với TabNet chọn CIC-IDS2017 và `giao_dien/mau_du_doan_cic.csv`. Hai file mẫu dùng để kiểm tra luồng dự đoán và xuất CSV.
