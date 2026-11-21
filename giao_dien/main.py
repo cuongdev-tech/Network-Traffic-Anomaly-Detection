@@ -353,7 +353,7 @@ class Dashboard(QMainWindow):
         controls.addSpacing(12)
         controls.addWidget(label("Nhóm mô hình"))
         self.group = QComboBox()
-        self.group.addItems(["Tất cả", "Baseline (5 mô hình ML)", "TabNet"])
+        self.group.addItems(["Tất cả", "Baseline (5 mô hình ML)", "Học sâu"])
         controls.addWidget(self.group)
         controls.addStretch()
         layout.addLayout(controls)
@@ -517,7 +517,7 @@ class Dashboard(QMainWindow):
         stamp = datetime.fromtimestamp(latest).strftime("%d/%m/%Y %H:%M") if latest else "Chưa có kết quả"
         self.freshness.setText(f"{DATASETS[dataset]}   ·   Cập nhật file: {stamp}")
         count = len(self.results)
-        self.notice.setText(f"{count} mô hình đã có kết quả. 5 mô hình Baseline và TabNet (Deep Learning dạng bảng) "
+        self.notice.setText(f"{count} mô hình đã có kết quả. Các mô hình baseline và học sâu "
                             "được đánh giá trên cùng điều kiện phân chia 80% train / 20% test.")
         self.update_comparison()
         self.model_choice.blockSignals(True)
@@ -552,8 +552,8 @@ class Dashboard(QMainWindow):
     def update_comparison(self):
         frame = self.results.copy()
         if not frame.empty and self.group.currentIndex():
-            is_tabnet = frame["model"] == "TabNet"
-            frame = frame.loc[~is_tabnet if self.group.currentIndex() == 1 else is_tabnet]
+            is_deep_learning = frame["_group"] == "Học sâu"
+            frame = frame.loc[~is_deep_learning if self.group.currentIndex() == 1 else is_deep_learning]
         metric = self.metric_choice.currentData()
         self.figure.clear()
         ax = self.figure.add_subplot(111)

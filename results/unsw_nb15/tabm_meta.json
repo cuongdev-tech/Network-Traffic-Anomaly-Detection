@@ -1,0 +1,67 @@
+{
+  "dataset": "UNSW-NB15 (Normal + 9 Attack Categories)",
+  "rows_used": 184673,
+  "features": 34,
+  "classes": [
+    "Analysis",
+    "Backdoor",
+    "DoS",
+    "Exploits",
+    "Fuzzers",
+    "Generic",
+    "Normal",
+    "Reconnaissance",
+    "Shellcode",
+    "Worms"
+  ],
+  "train": 147738,
+  "test": 36935,
+  "split": "80/20 Stratified",
+  "split_seed": 42,
+  "test_indices_sha256": "942096841d54fc158fac436e5c57a6bcda38fc4319e7aa2f19c2e7e2c65e0ed8",
+  "fit_train": 132964,
+  "validation": 14774,
+  "architecture": "TabM-mini with piecewise-linear numerical embeddings",
+  "selection_metric": "accuracy",
+  "selected": {
+    "epoch": 12,
+    "class_weight_power": 0.0,
+    "accuracy": 0.7972113171788276,
+    "f1_macro": 0.5072518074036856,
+    "epochs_run": 18,
+    "train_time_s": 400.47
+  },
+  "validation_candidates": [
+    {
+      "epoch": 12,
+      "class_weight_power": 0.0,
+      "accuracy": 0.7972113171788276,
+      "f1_macro": 0.5072518074036856,
+      "epochs_run": 18,
+      "train_time_s": 400.47
+    },
+    {
+      "epoch": 13,
+      "class_weight_power": 0.25,
+      "accuracy": 0.7944361716529037,
+      "f1_macro": 0.5302897298846405,
+      "epochs_run": 19,
+      "train_time_s": 358.75
+    }
+  ],
+  "baseline": {
+    "accuracy": {
+      "model": "XGBoost",
+      "score": 0.798944
+    },
+    "f1_macro": {
+      "model": "DecisionTree",
+      "score": 0.57583
+    }
+  },
+  "beats_baseline": {
+    "accuracy": false,
+    "f1_macro": false
+  },
+  "evaluation_note": "Historical baseline split; duplicate flow overlap is not removed."
+}

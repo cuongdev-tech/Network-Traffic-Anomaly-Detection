@@ -50,7 +50,8 @@ def model_paths(root, dataset):
     filenames = {name: f"{baseline}{name}.joblib"
                  for name in ("LogisticRegression", "DecisionTree", "KNN")}
     filenames.update({"Random Forest": "random_forest_attack.joblib",
-                      "XGBoost": "xgboost_attack.joblib", "TabNet": "tabnet_bundle.joblib"})
+                      "XGBoost": "xgboost_attack.joblib", "TabNet": "tabnet_bundle.joblib",
+                      "TabM": "tabm_bundle.joblib"})
     return {name: folder / filename for name, filename in filenames.items()
             if (folder / filename).is_file()}
 
@@ -149,13 +150,16 @@ def predict_file(root, dataset, name, path):
         expected = getattr(model, "n_features_in_", getattr(model, "input_dim", None))
         if expected is not None and batch.shape[1] != expected:
             raise ValueError(f"Sau tiền xử lý có {batch.shape[1]} cột, nhưng model cần {expected}. Kiểm tra bundle huấn luyện.")
-        output = model.predict(batch)
+        batch_probabilities = model.predict_proba(batch) if name == "TabM" else None
+        output = model.predict(batch) if batch_probabilities is None else batch_probabilities.argmax(axis=1)
         if any(isinstance(value, (int, np.integer)) and not 0 <= int(value) < len(labels) for value in output):
             raise ValueError("Model trả mã lớp ngoài danh sách nhãn đã lưu.")
         predictions.extend(labels[int(value)] if isinstance(value, (int, np.integer))
                            else str(value) for value in output)
-        if hasattr(model, "predict_proba"):
-            probabilities.extend(model.predict_proba(batch).max(axis=1).tolist())
+        if batch_probabilities is None and hasattr(model, "predict_proba"):
+            batch_probabilities = model.predict_proba(batch)
+        if batch_probabilities is not None:
+            probabilities.extend(batch_probabilities.max(axis=1).tolist())
     result = normalize_predictions(predictions)
     result.index = frame.index
     if probabilities:

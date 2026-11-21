@@ -103,9 +103,26 @@ TabNet lưu trọng số ở `tabnet_attack.zip` cùng metadata/scaler hoặc pr
 
 Đây vẫn là đánh giá offline; chưa khử triệt để mẫu trùng train/test và chưa có bắt gói realtime. Giảm riêng lớp Normal không đồng nghĩa cả 10 lớp đã cân bằng.
 
+## Thử nghiệm TabM
+
+TabM là mô hình học sâu cho dữ liệu bảng. Chạy từ thư mục gốc trên nhánh `main`:
+
+```bash
+python -m pip install -r requirements.txt
+python -m src.train_tabm --dataset unsw
+# Thử cùng giao thức trên CIC-IDS2017:
+python -m src.train_tabm --dataset cic
+```
+
+Script dùng đúng cách chia 80/20 (seed 42) của bảng baseline hiện tại. Tiền xử lý, các ngưỡng embedding và hai cấu hình trọng số lớp được fit hoặc chọn bên trong tập train. Mặc định chọn checkpoint theo Accuracy trên validation. Dùng `--selection-metric f1_macro` nếu macro F1 là chỉ số chính đã thống nhất trước khi chạy. Tập test chỉ dùng để đánh giá cấu hình đã chọn. Lần thử này giữ split lịch sử nên train và test vẫn có các dòng trùng đặc trưng.
+
+Kết quả gồm `tabm_metrics.csv`, `tabm_per_class.csv`, `tabm_meta.json` và `cm_tabm.png` trong thư mục kết quả của từng bộ dữ liệu. File `tabm_bundle.joblib` chứa cả model và bộ tiền xử lý. Giao diện nạp các tệp TabM khi có sẵn và hiển thị kết quả TabNet để đối chiếu.
+
+Trên 36.935 mẫu test UNSW-NB15, TabM đạt Accuracy 79,3827% và macro F1 50,5684%. XGBoost đạt Accuracy cao nhất trong các baseline (79,8944%), còn Decision Tree đạt macro F1 cao nhất (57,5830%). TabM được giữ trong giao diện để đối chiếu thực nghiệm với TabNet và các baseline.
+
 ## Giao diện desktop — PySide6
 
-Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh sáu mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Dùng `giao_dien/mau_du_doan_cic.csv` để thử nhanh với dataset CIC và model TabNet; file mẫu không có nhãn và không dùng để đánh giá accuracy.
+Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh các mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Dùng `giao_dien/mau_du_doan_cic.csv` để thử nhanh với dataset CIC và model TabNet; file mẫu không có nhãn và không dùng để đánh giá accuracy.
 
 ```bash
 python -m pip install -r giao_dien/requirements.txt

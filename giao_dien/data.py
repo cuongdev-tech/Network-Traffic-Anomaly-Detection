@@ -15,12 +15,13 @@ METRICS = {
 MODEL_NAMES = {
     "LogisticRegression": "Logistic Regression", "DecisionTree": "Decision Tree",
     "KNN": "KNN", "Random Forest": "Random Forest", "XGBoost": "XGBoost",
-    "TabNet": "TabNet",
+    "TabNet": "TabNet", "TabM": "TabM",
 }
 SOURCES = (
     ("baselines", "Baseline (5 mô hình ML)", {"LogisticRegression", "DecisionTree", "KNN", "Random Forest", "XGBoost"}),
     ("random_forest_xgboost", "RF / XGBoost", {"Random Forest", "XGBoost"}),
-    ("tabnet", "TabNet (DL Bảng)", {"TabNet"}),
+    ("tabnet", "Học sâu", {"TabNet"}),
+    ("tabm", "Học sâu", {"TabM"}),
 )
 EDA_CATEGORICAL_FEATURES = {"proto": "Giao thức", "service": "Dịch vụ", "state": "Trạng thái"}
 EDA_METRIC_NAMES = {
@@ -421,6 +422,7 @@ def confusion_path(folder, model):
         "Random Forest": "random_forest",
         "XGBoost": "xgboost",
         "TabNet": "tabnet",
+        "TabM": "tabm",
         "DecisionTree": "DecisionTree",
         "LogisticRegression": "LogisticRegression",
         "KNN": "KNN",

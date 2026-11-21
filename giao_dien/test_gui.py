@@ -50,7 +50,10 @@ class DashboardTests(unittest.TestCase):
         try:
             for dataset in range(window.dataset.count()):
                 window.dataset.setCurrentIndex(dataset)
-                for index, expected in [(0, traditional | {"TabNet"}), (1, traditional), (2, {"TabNet"})]:
+                deep_learning = {"TabNet"}
+                if (window.folder / "tabm_metrics.csv").is_file():
+                    deep_learning.add("TabM")
+                for index, expected in [(0, traditional | deep_learning), (1, traditional), (2, deep_learning)]:
                     window.group.setCurrentIndex(index)
                     window.update_comparison()
                     names = {window.comparison.item(row, 0).text()

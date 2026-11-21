@@ -9,7 +9,7 @@ python giao_dien/main.py
 
 Hoặc chạy `python -m giao_dien.main`. Giao diện tự tìm thư mục `results` theo vị trí mã nguồn, không phụ thuộc thư mục đang mở terminal.
 
-- **So sánh mô hình:** bảng Accuracy, Precision/Recall weighted, F1 weighted/macro và thời gian. Bộ lọc **Tất cả** hiện sáu mô hình; **Baseline** hiện năm mô hình Logistic Regression, Decision Tree, KNN, Random Forest, XGBoost; **TabNet** hiện riêng mô hình deep learning dạng bảng. Bộ lọc áp dụng cho cả bảng và biểu đồ trên hai dataset.
+- **So sánh mô hình:** bảng Accuracy, Precision/Recall weighted, F1 weighted/macro và thời gian. Bộ lọc **Tất cả** hiện các mô hình có kết quả; **Baseline** hiện Logistic Regression, Decision Tree, KNN, Random Forest và XGBoost; **Học sâu** hiện TabNet và TabM khi có kết quả thử nghiệm. Bộ lọc áp dụng cho cả bảng và biểu đồ trên hai dataset.
 - **Chi tiết mô hình:** confusion matrix, chỉ số từng lớp, thông tin lần train.
 - **EDA dữ liệu:** chọn biểu đồ và bảng thống kê đã xuất cho CIC-IDS2017 hoặc UNSW-NB15.
 - **Làm mới kết quả:** đọc lại file sau khi train/EDA xong. Nút mở hình hiển thị ảnh ở kích thước gốc bằng trình xem ảnh của máy.

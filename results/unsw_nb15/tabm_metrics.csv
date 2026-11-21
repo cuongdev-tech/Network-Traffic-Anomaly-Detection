@@ -1,0 +1,2 @@
+model,accuracy,train_time_s,predict_time_s,precision_weighted,recall_weighted,f1_weighted,precision_macro,recall_macro,f1_macro
+TabM,0.7938269933667254,400.47,1.34,0.8223123529949754,0.7938269933667254,0.7588248839306677,0.6772009176215364,0.5007006036125004,0.5056843807614502
