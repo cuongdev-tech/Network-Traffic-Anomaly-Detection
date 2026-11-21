@@ -7,9 +7,11 @@ import faiss
 import numpy as np
 import torch
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch import nn
 
+from src.cic_data import load_cleaned_cic
 from src.unsw_data import load_and_balance_unsw, split_for_tabr, test_index_hash
 
 
@@ -102,19 +104,35 @@ class TabRClassifier:
         return self.logits(tensors(query)).softmax(dim=1).numpy()
 
 
-def load_classifier(root, bundle):
-    metadata_path = root / "results" / "unsw_nb15" / "tabr_meta.json"
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    features, labels = load_and_balance_unsw(
-        data_dir=root / "data" / "raw" / "unsw_nb15", verbose=False,
+def sample_reference(features, labels, size):
+    if size == len(features):
+        return features, labels
+    sample, _, y_sample, _ = train_test_split(
+        features, labels, train_size=size, stratify=labels, random_state=42,
     )
+    return sample, y_sample
+
+
+def load_classifier(root, dataset, bundle):
+    results_dir = root / "results"
+    raw_data = root / "data" / "raw"
+    if dataset == "cic":
+        frame = load_cleaned_cic(data_dir=raw_data / "cicids2017", verbose=False)
+        labels = frame.pop("Label")
+        features = frame.select_dtypes(include=[np.number])
+    else:
+        results_dir /= "unsw_nb15"
+        features, labels = load_and_balance_unsw(data_dir=raw_data / "unsw_nb15", verbose=False)
+
+    metadata = json.loads((results_dir / "tabr_meta.json").read_text(encoding="utf-8"))
     encoder = LabelEncoder()
     encoded = encoder.fit_transform(labels)
     reference, _, test, y_reference, _, _ = split_for_tabr(features, encoded)
     if (list(features) != bundle["features"] or encoder.classes_.tolist() != bundle["classes"]
-            or len(reference) != metadata["fit_train"]
+            or not 0 < metadata["fit_train"] <= len(reference)
             or test_index_hash(test) != metadata["test_indices_sha256"]):
-        raise ValueError("Dữ liệu tham chiếu UNSW-NB15 không khớp với checkpoint TabR.")
+        raise ValueError("Dữ liệu tham chiếu không khớp với checkpoint TabR.")
+    reference, y_reference = sample_reference(reference, y_reference, metadata["fit_train"])
 
     torch.set_num_threads(metadata["threads"])
     faiss.omp_set_num_threads(metadata["threads"])

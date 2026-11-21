@@ -9,7 +9,7 @@ python giao_dien/main.py
 
 Hoặc chạy `python -m giao_dien.main`. Giao diện tự tìm thư mục `results` theo vị trí mã nguồn, không phụ thuộc thư mục đang mở terminal.
 
-- **So sánh mô hình:** bảng Accuracy, Precision/Recall weighted, F1 weighted/macro và thời gian. Bộ lọc **Tất cả** hiện các mô hình có kết quả; **Baseline** hiện Logistic Regression, Decision Tree, KNN, Random Forest và XGBoost; **Học sâu** hiện TabNet trên CIC-IDS2017 và TabR trên UNSW-NB15. Bộ lọc áp dụng cho cả bảng và biểu đồ trên hai dataset.
+- **So sánh mô hình:** bảng Accuracy, Precision/Recall weighted, F1 weighted/macro và thời gian. Bộ lọc **Tất cả** hiện các mô hình có kết quả; **Baseline** hiện Logistic Regression, Decision Tree, KNN, Random Forest và XGBoost; **Học sâu** hiện TabR trên cả hai bộ dữ liệu. Bộ lọc áp dụng cho cả bảng và biểu đồ trên hai dataset.
 - **Chi tiết mô hình:** confusion matrix, chỉ số từng lớp, thông tin lần train.
 - **EDA dữ liệu:** chọn biểu đồ và bảng thống kê đã xuất cho CIC-IDS2017 hoặc UNSW-NB15.
 - **Làm mới kết quả:** đọc lại file sau khi train/EDA xong. Nút mở hình hiển thị ảnh ở kích thước gốc bằng trình xem ảnh của máy.
@@ -26,4 +26,4 @@ Kiểm tra: `python -m unittest giao_dien.test_data giao_dien.test_gui`. Kiểm 
 
 Thiết kế: Framed sheet, seed 281715824; khung xanh xám nhạt, nền nội dung trắng, teal trên dữ liệu. Dùng Segoe UI trên Windows; nếu Qt không nhận font hệ thống, ứng dụng nạp DejaVu Sans có sẵn trong Matplotlib để hiển thị tiếng Việt. Không cần tải font. Các biểu đồ và con số lấy từ kết quả thật của dự án.
 
-Nạp model mới: hỗ trợ `classes` và bundle cũ `labels`; áp dụng `scaler` hoặc `preprocessor` đã fit trước khi dự đoán. TabNet đọc `tabnet_attack.zip` trên CPU. TabR là lựa chọn mặc định trên UNSW-NB15. Để demo, chọn `mau_du_doan_unsw.csv`; chương trình nạp `tabr_checkpoint.joblib` và dựng chỉ mục từ đúng phần train trong hai file Parquet gốc ở `data/raw/unsw_nb15/`. Với UNSW ML cũ thiếu preprocessor, dùng `preprocessor_bundle.joblib` có cùng features/classes từ lần train chung; thiếu hoặc không khớp thì báo lỗi, không tự fit hoặc điền cột giả. Không chạy src/train_unsw_tabnet.py nhị phân cũ để ghi đè TabNet 10 lớp.
+Nạp model mới: hỗ trợ `classes` và bundle cũ `labels`; áp dụng `scaler` hoặc `preprocessor` đã fit trước khi dự đoán. TabNet đọc `tabnet_attack.zip` trên CPU. TabR là lựa chọn mặc định trên cả CIC-IDS2017 và UNSW-NB15. Demo bằng `mau_du_doan_cic.csv` cho CIC hoặc `mau_du_doan_unsw.csv` cho UNSW. Mỗi bộ dùng `tabr_checkpoint.joblib` riêng. Giao diện dựng chỉ mục từ phần train đã dùng khi đánh giá, đọc hai CSV gốc trong `data/raw/cicids2017/` hoặc hai Parquet trong `data/raw/unsw_nb15/`. Với UNSW ML cũ thiếu preprocessor, dùng `preprocessor_bundle.joblib` có cùng features/classes từ lần train chung; thiếu hoặc không khớp thì báo lỗi, không tự fit hoặc điền cột giả. Không chạy src/train_unsw_tabnet.py nhị phân cũ để ghi đè TabNet 10 lớp.

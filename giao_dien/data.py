@@ -377,7 +377,7 @@ def load_results(root, dataset):
     folder = result_dir(root, dataset)
     frames, issues = [], []
     sources = SOURCES
-    if dataset == "unsw" and (folder / "tabr_metrics.csv").is_file():
+    if (folder / "tabr_metrics.csv").is_file():
         sources = [source for source in sources if source[0] not in {"tabnet", "tabm"}]
     for stem, group, names in sources:
         csv_file = folder / f"{stem}_metrics.csv"

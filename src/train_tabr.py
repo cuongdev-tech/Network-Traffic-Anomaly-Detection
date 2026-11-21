@@ -14,7 +14,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, QuantileTransformer
 
-from src.tabr_training import predict, tensors, train
+from src.cic_data import load_cleaned_cic
+from src.tabr_training import predict, sample_reference, tensors, train
 from src.train_full_unsw import MODEL_DIR, OUT_DIR, plot_confusion_matrix as plot_unsw_confusion
 from src.unsw_data import load_and_balance_unsw, split_for_tabr, test_index_hash
 
@@ -34,11 +35,11 @@ def make_preprocessor(frame):
     ])
 
 
-def save_comparison():
-    baselines = pd.read_csv(OUT_DIR / "baselines_metrics.csv")
-    tabr = pd.read_csv(OUT_DIR / "tabr_metrics.csv")
+def save_comparison(results_dir):
+    baselines = pd.read_csv(results_dir / "baselines_metrics.csv")
+    tabr = pd.read_csv(results_dir / "tabr_metrics.csv")
     comparison = pd.concat([baselines, tabr], ignore_index=True).sort_values("accuracy", ascending=False)
-    comparison.to_csv(OUT_DIR / "all_models_metrics.csv", index=False)
+    comparison.to_csv(results_dir / "all_models_metrics.csv", index=False)
 
 
 def run(args):
@@ -47,13 +48,13 @@ def run(args):
     plot_confusion = plot_unsw_confusion
     if args.dataset == "cic":
         from src.train_full_cic import MODEL_DIR as CIC_MODELS, OUT_DIR as CIC_RESULTS
-        from src.train_full_cic import load_cleaned_cic, plot_confusion_matrix as plot_cic_confusion
+        from src.train_full_cic import plot_confusion_matrix as plot_cic_confusion
 
         frame = load_cleaned_cic()
         labels = frame.pop("Label")
         features = frame.select_dtypes(include=[np.number])
-        results_dir = CIC_RESULTS / "tabr_cic_trial"
-        checkpoint = CIC_MODELS / "tabr_trial_checkpoint.joblib"
+        results_dir = CIC_RESULTS
+        checkpoint = CIC_MODELS / "tabr_checkpoint.joblib"
         plot_confusion = plot_cic_confusion
     else:
         features, labels = load_and_balance_unsw()
@@ -64,11 +65,10 @@ def run(args):
     split_hash = test_index_hash(testing)
     train_size = len(inner) + len(validation)
     if args.dataset == "cic":
-        baseline_dir = results_dir.parent
-        reference = json.loads((baseline_dir / "baselines_meta.json").read_text(encoding="utf-8"))
+        reference = json.loads((results_dir / "baselines_meta.json").read_text(encoding="utf-8"))
         if (reference["train"], reference["test"], reference["classes"]) != (train_size, len(testing), classes):
             raise ValueError("CIC baselines use a different split or class set.")
-        baselines = pd.read_csv(baseline_dir / "baselines_metrics.csv").set_index("model")
+        baselines = pd.read_csv(results_dir / "baselines_metrics.csv").set_index("model")
         baseline_scores = {
             metric: {"model": baselines[metric].idxmax(), "score": float(baselines[metric].max())}
             for metric in ("accuracy", "f1_macro")
@@ -86,10 +86,8 @@ def run(args):
             validation, y_validation, train_size=3_000, stratify=y_validation, random_state=42,
         )
     elif args.dataset == "cic":
-        # Bound this CPU trial to a stratified training/reference sample. Validation and test stay intact.
-        inner, _, y_inner, _ = train_test_split(
-            inner, y_inner, train_size=90_000, stratify=y_inner, random_state=42,
-        )
+        # Reuse the same CPU-sized stratified reference selection for training and inference.
+        inner, y_inner = sample_reference(inner, y_inner, 90_000)
         print(f"CIC trial: {len(inner):,} fit/reference, {len(validation):,} validation, "
               f"{len(testing):,} held out", flush=True)
     preprocessor = make_preprocessor(inner)
@@ -147,8 +145,7 @@ def run(args):
         labels=classes, y_true=encoder.inverse_transform(y_test), y_pred=encoder.inverse_transform(predicted),
         title="TabR", filename=results_dir / "cm_tabr.png",
     )
-    if args.dataset == "unsw":
-        save_comparison()
+    save_comparison(results_dir)
     print(pd.DataFrame([metrics]).to_string(index=False), flush=True)
     print(f"Baseline comparison: {metadata['beats_baseline']}", flush=True)
 

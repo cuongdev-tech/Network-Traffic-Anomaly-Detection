@@ -50,15 +50,10 @@ class DashboardTests(unittest.TestCase):
         try:
             for dataset in range(window.dataset.count()):
                 window.dataset.setCurrentIndex(dataset)
-                if window.dataset.currentData() == "unsw":
-                    deep_learning = {"TabR"}
-                    self.assertEqual(window.prediction_model.currentData(), "TabR")
-                    self.assertEqual(window.prediction_model.findData("TabM"), -1)
-                    self.assertEqual(window.prediction_model.findData("TabNet"), -1)
-                else:
-                    deep_learning = {"TabNet"}
-                    if (window.folder / "tabm_metrics.csv").is_file():
-                        deep_learning.add("TabM")
+                deep_learning = {"TabR"}
+                self.assertEqual(window.prediction_model.currentData(), "TabR")
+                self.assertEqual(window.prediction_model.findData("TabM"), -1)
+                self.assertEqual(window.prediction_model.findData("TabNet"), -1)
                 for index, expected in [(0, traditional | deep_learning), (1, traditional), (2, deep_learning)]:
                     window.group.setCurrentIndex(index)
                     window.update_comparison()

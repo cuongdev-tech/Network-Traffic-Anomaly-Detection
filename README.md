@@ -77,16 +77,16 @@ Kết quả lưu ở `results/random_forest_xgboost_metrics.csv`, `results/rando
 
 ## Mô hình dùng trong bản nộp
 
-Mỗi bộ dữ liệu có năm baseline gồm Logistic Regression, Decision Tree, KNN, Random Forest và XGBoost. Mô hình học sâu chính là **TabNet cho CIC-IDS2017** và **TabR cho UNSW-NB15**.
+Mỗi bộ dữ liệu có năm baseline gồm Logistic Regression, Decision Tree, KNN, Random Forest và XGBoost. Mô hình học sâu chính là **TabR trên cả CIC-IDS2017 và UNSW-NB15**, với checkpoint và bộ tiền xử lý riêng cho từng bộ dữ liệu.
 
 | Dataset | Dòng dùng | Train / test | Đặc trưng gốc | Lớp |
 |---|---:|---:|---:|---|
 | CIC-IDS2017 | 511.807 | 409.445 / 102.362 | 77 | BENIGN, DDoS, PortScan |
 | UNSW-NB15 | 184.673, sau khi giảm Normal còn 20.000 | 147.738 / 36.935 | 34 | Normal + 9 loại tấn công |
 
-Bảng chính thức của từng bộ nằm ở `results/all_models_metrics.csv` và `results/unsw_nb15/all_models_metrics.csv`. Các kết quả TabNet và TabM trên UNSW được lưu trong các tệp riêng để đối chiếu. Các script baseline 60.000 dòng và UNSW nhị phân thuộc luồng thực nghiệm cũ. `src/train_full_unsw.py --all` tái lập thử nghiệm UNSW với TabNet. Dùng mục TabR bên dưới để tái lập bảng chính thức của UNSW.
+Bảng chính thức của từng bộ nằm ở `results/all_models_metrics.csv` và `results/unsw_nb15/all_models_metrics.csv`. Các kết quả TabNet, TabM và RealMLP được lưu trong các tệp tương ứng để đối chiếu. Các script baseline 60.000 dòng, UNSW nhị phân và huấn luyện TabNet thuộc luồng thực nghiệm cũ. Dùng các lệnh TabR bên dưới để tạo lại bảng chính thức.
 
-Các phép đo thực hiện offline, dùng split 80/20 và có thể có dòng test trùng đặc trưng với train. Đánh giá TabR đầy đủ hiện có trên UNSW-NB15.
+Các phép đo thực hiện offline, dùng split 80/20 và có thể có dòng test trùng đặc trưng với train. TabR vượt baseline tốt nhất trên UNSW-NB15. Trên CIC-IDS2017, XGBoost vẫn đạt Accuracy và macro F1 cao nhất.
 
 ## Thử nghiệm TabM
 
@@ -119,11 +119,11 @@ Kết quả lưu ở `results/unsw_nb15/tabr_metrics.csv`, `tabr_per_class.csv`,
 
 TabR đạt Accuracy **80,4142%** và macro F1 **61,1442%** trên toàn bộ test UNSW-NB15. Hai mốc baseline tương ứng là **79,8944%** của XGBoost và **57,5830%** của Decision Tree. Kiểm tra bổ sung giữ nguyên mô hình đã fit và chỉ tính trên 14.045 dòng test có bộ đặc trưng vắng mặt trong toàn bộ tập train. Trên phần này, Accuracy của TabR là **82,3994%** và của XGBoost là **81,1890%**.
 
-### Thử nghiệm TabR trên CIC-IDS2017
+## TabR trên CIC-IDS2017
 
-Chạy lại bằng `python -m src.train_tabr --dataset cic --max-epochs 12`. Lượt thử dùng 90.000 dòng lấy phân tầng từ tập train làm dữ liệu huấn luyện và tham chiếu. Checkpoint được chọn trên 40.945 dòng validation. Tập test giữ nguyên 102.362 dòng để đối chiếu cùng bảng baseline CIC.
+Chạy lại bằng `python -m src.train_tabr --dataset cic --max-epochs 12`. Mô hình dùng 90.000 dòng lấy phân tầng từ tập train làm dữ liệu huấn luyện và tham chiếu. Checkpoint được chọn trên 40.945 dòng validation. Tập test giữ nguyên 102.362 dòng để đối chiếu cùng bảng baseline CIC.
 
-TabR đạt **99,9678% Accuracy** (33 lỗi), thấp hơn mốc XGBoost **99,9961%** (4 lỗi). Bảng chính thức và giao diện CIC dùng TabNet. Kết quả lượt thử được lưu riêng tại `results/tabr_cic_trial/`.
+TabR đạt **99,9678% Accuracy** (33 lỗi), thấp hơn mốc XGBoost **99,9961%** (4 lỗi). Bảng chính thức và giao diện CIC dùng TabR để thống nhất kiến trúc với UNSW-NB15. Kết quả lưu ở `results/tabr_metrics.csv`, `tabr_per_class.csv`, `tabr_meta.json` và `cm_tabr.png`. Giao diện nạp checkpoint tại `models/cic/tabr_checkpoint.joblib` và dựng chỉ mục tham chiếu từ hai CSV gốc trong `data/raw/cicids2017/`.
 
 ### Thử nghiệm RealMLP trên CIC-IDS2017
 
@@ -132,11 +132,11 @@ python -m pip install pytabkit==1.8.0
 python -m src.train_realmlp_cic
 ```
 
-RealMLP-TD của PyTabKit được cấu hình cho CPU và huấn luyện trên 368.500 dòng. Checkpoint được chọn theo Accuracy trên 40.945 dòng validation. Trên cùng 102.362 dòng test CIC, RealMLP đạt **99,9883% Accuracy** (12 lỗi), so với **99,9678%** của TabR (33 lỗi), **99,8837%** của TabNet (119 lỗi) và **99,9961%** của XGBoost (4 lỗi). Giao diện và bảng CIC chính thức dùng TabNet. Kết quả RealMLP lưu tại `results/realmlp_cic_trial/`.
+RealMLP-TD của PyTabKit được cấu hình cho CPU và huấn luyện trên 368.500 dòng. Checkpoint được chọn theo Accuracy trên 40.945 dòng validation. Trên cùng 102.362 dòng test CIC, RealMLP đạt **99,9883% Accuracy** (12 lỗi), so với **99,9678%** của TabR (33 lỗi), **99,8837%** của TabNet (119 lỗi) và **99,9961%** của XGBoost (4 lỗi). RealMLP có Accuracy cao nhất trong các lượt thử học sâu trên CIC. Kết quả RealMLP lưu tại `results/realmlp_cic_trial/`.
 
 ## Giao diện desktop — PySide6
 
-Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh các mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Demo với TabR chọn UNSW-NB15 và `giao_dien/mau_du_doan_unsw.csv`. Demo với TabNet chọn CIC-IDS2017 và `giao_dien/mau_du_doan_cic.csv`. Hai file mẫu dùng để kiểm tra luồng dự đoán và xuất CSV.
+Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh các mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. TabR là lựa chọn mặc định cho cả hai bộ. Dùng `giao_dien/mau_du_doan_cic.csv` cho CIC và `giao_dien/mau_du_doan_unsw.csv` cho UNSW. Hai file mẫu dùng để kiểm tra luồng dự đoán và xuất CSV.
 
 ```bash
 python -m pip install -r giao_dien/requirements.txt
@@ -151,26 +151,14 @@ Chọn dataset rồi nhấn **Làm mới** sau khi chạy lại các script. C�
 
 ```bash
 python -m pip install -r requirements.txt -r giao_dien/requirements.txt
-python src/train_full_cic.py --all
-python -m src.train_tabr --max-epochs 20
+python -m src.train_tabr --dataset cic --max-epochs 12
+python -m src.train_tabr --dataset unsw --max-epochs 20
 python giao_dien/main.py
 ```
 
-## Ghi chú cho thành viên khác
+## Dữ liệu tham chiếu cho bản nộp
 
-Random Forest / XGBoost / TabNet dùng file `data/processed/cicids_60k.csv.gz` và cùng split 80/20 dưới đây. Các script cũ train_baselines.py vẫn dùng split 70/30; luồng train_full_* mới dùng 80/20 cho tất cả model:
-
-```python
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-
-data = pd.read_csv("data/processed/cicids_60k.csv.gz")
-X = data.drop(columns=["Label"]).select_dtypes(include=["number"])
-y = LabelEncoder().fit_transform(data["Label"])
-Xtr, Xte, ytr, yte = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)
-```
+Giữ các checkpoint, bảng kết quả và dữ liệu gốc cùng phiên bản. TabR dùng dữ liệu train để dựng chỉ mục khi dự đoán. CIC dùng hai CSV trong `data/raw/cicids2017/` và UNSW dùng hai Parquet trong `data/raw/unsw_nb15/`. Các file mẫu trong `giao_dien/` là đầu vào để demo dự đoán.
 
 ## Baseline bổ sung — UNSW-NB15
 

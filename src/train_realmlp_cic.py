@@ -32,7 +32,7 @@ def run(epochs, threads):
     positions = pd.Series(np.arange(len(frame)), index=frame.index)
     inner, validation, testing, _, y_val, y_test = split_for_tabr(positions, labels)
     split_hash = test_index_hash(testing)
-    known = json.loads((OUT_DIR / "tabr_cic_trial" / "tabr_meta.json").read_text(encoding="utf-8"))
+    known = json.loads((OUT_DIR / "tabr_meta.json").read_text(encoding="utf-8"))
     if known["test_indices_sha256"] != split_hash or known["classes"] != classes:
         raise ValueError("The CIC test split differs from the established benchmark.")
 

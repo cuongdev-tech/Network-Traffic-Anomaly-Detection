@@ -10,6 +10,7 @@ Chay:
 """
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -39,51 +40,15 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.cic_data import load_cleaned_cic
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data" / "raw" / "cicids2017"
 OUT_DIR = BASE_DIR / "results"
 MODEL_DIR = BASE_DIR / "models" / "cic"
-
-FILES = [
-    "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
-    "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
-]
-
-DROP_COLS = ["Flow ID", "Source IP", "Destination IP", "Timestamp", "Fwd Header Length.1", "source_file"]
-
-
-def load_cleaned_cic():
-    print("=" * 65)
-    print("1. DOC VA TIEN XU LY DU LIEU CIC-IDS2017 (512.212 DONG GOC)...")
-    frames = []
-    for name in FILES:
-        path = DATA_DIR / name
-        if not path.exists():
-            raise FileNotFoundError(f"Khong tim thay {path}")
-        df = pd.read_csv(path, low_memory=False)
-        df.columns = [c.strip() for c in df.columns]
-        frames.append(df)
-        print(f"  + {name}: {len(df):,} dong")
-
-    raw_total = sum(len(f) for f in frames)
-    data = pd.concat(frames, ignore_index=True)
-    print(f"  -> Tong so dong raw: {raw_total:,}")
-
-    # Loc inf, -inf va nan
-    data = data.replace([np.inf, -np.inf], np.nan).dropna()
-    data = data.drop(columns=[c for c in DROP_COLS if c in data.columns], errors="ignore")
-
-    data["Label"] = data["Label"].astype(str).str.strip()
-    data.loc[data["Label"].str.upper() == "BENIGN", "Label"] = "BENIGN"
-
-    print(f"  -> Sau khi loai bo inf/nan: {len(data):,} dong hop le (giam {raw_total - len(data):,} dong loi)")
-    print("  -> Phan bo nhan:")
-    for lbl, count in data["Label"].value_counts().items():
-        print(f"     • {lbl}: {count:,} ({count / len(data) * 100:.2f}%)")
-    print("=" * 65)
-    return data
-
 
 def plot_confusion_matrix(y_true, y_pred, labels, title, filename):
     cm = confusion_matrix(y_true, y_pred, labels=labels)

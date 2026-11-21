@@ -51,9 +51,7 @@ def model_paths(root, dataset):
                  for name in ("LogisticRegression", "DecisionTree", "KNN")}
     filenames.update({"Random Forest": "random_forest_attack.joblib",
                       "XGBoost": "xgboost_attack.joblib", "TabNet": "tabnet_bundle.joblib",
-                      "TabM": "tabm_bundle.joblib"})
-    if dataset == "unsw":
-        filenames["TabR"] = "tabr_checkpoint.joblib"
+                      "TabM": "tabm_bundle.joblib", "TabR": "tabr_checkpoint.joblib"})
     return {name: folder / filename for name, filename in filenames.items()
             if (folder / filename).is_file()}
 
@@ -88,7 +86,7 @@ def load_bundle(root, dataset, name):
     if name == "TabR":
         from src.tabr_training import load_classifier
 
-        bundle["model"] = load_classifier(Path(root), bundle)
+        bundle["model"] = load_classifier(Path(root), dataset, bundle)
     if "model" not in bundle:
         raise ValueError("File model không chứa mô hình dự đoán.")
     if dataset == "unsw" and "classes" in bundle and "preprocessor" not in bundle:
