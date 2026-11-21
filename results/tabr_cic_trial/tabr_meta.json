@@ -1,0 +1,117 @@
+{
+  "dataset": "CIC-IDS2017 Friday afternoon (DDoS + PortScan)",
+  "rows_used": 511807,
+  "features": 77,
+  "classes": [
+    "BENIGN",
+    "DDoS",
+    "PortScan"
+  ],
+  "train": 409445,
+  "test": 102362,
+  "split": "80/20 Stratified",
+  "split_seed": 42,
+  "test_indices_sha256": "36a56128de7216db4d0c81fc4cf72f71bd27ca6c72014bead2571d978e681ed7",
+  "fit_train": 90000,
+  "validation": 40945,
+  "architecture": "CPU TabR with approximate IVF-flat search and cached training contexts",
+  "selection_metric": "validation accuracy",
+  "max_epochs": 12,
+  "threads": 2,
+  "selected": {
+    "epoch": 6,
+    "accuracy": 0.9998778849676395,
+    "f1_macro": 0.9998677819410021,
+    "seconds": 12.97
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "accuracy": 0.9995115398705581,
+      "f1_macro": 0.9995037322878391,
+      "seconds": 36.58
+    },
+    {
+      "epoch": 2,
+      "accuracy": 0.9995848088899744,
+      "f1_macro": 0.9995708328146633,
+      "seconds": 26.98
+    },
+    {
+      "epoch": 3,
+      "accuracy": 0.9997069239223348,
+      "f1_macro": 0.9996953732563583,
+      "seconds": 40.6
+    },
+    {
+      "epoch": 4,
+      "accuracy": 0.9997069239223348,
+      "f1_macro": 0.9996890358933044,
+      "seconds": 21.1
+    },
+    {
+      "epoch": 5,
+      "accuracy": 0.9998046159482232,
+      "f1_macro": 0.99979119371661,
+      "seconds": 26.06
+    },
+    {
+      "epoch": 6,
+      "accuracy": 0.9998778849676395,
+      "f1_macro": 0.9998677819410021,
+      "seconds": 12.97
+    },
+    {
+      "epoch": 7,
+      "accuracy": 0.9998290389546953,
+      "f1_macro": 0.9998244213229434,
+      "seconds": 20.31
+    },
+    {
+      "epoch": 8,
+      "accuracy": 0.9997313469288069,
+      "f1_macro": 0.9997285935662806,
+      "seconds": 19.49
+    },
+    {
+      "epoch": 9,
+      "accuracy": 0.9997801929417511,
+      "f1_macro": 0.9997733464240305,
+      "seconds": 25.41
+    },
+    {
+      "epoch": 10,
+      "accuracy": 0.9997069239223348,
+      "f1_macro": 0.9996999074085622,
+      "seconds": 24.04
+    },
+    {
+      "epoch": 11,
+      "accuracy": 0.9997801929417511,
+      "f1_macro": 0.999773354505305,
+      "seconds": 25.37
+    },
+    {
+      "epoch": 12,
+      "accuracy": 0.9998046159482232,
+      "f1_macro": 0.9997988844110526,
+      "seconds": 23.09
+    }
+  ],
+  "baseline": {
+    "accuracy": {
+      "model": "XGBoost",
+      "score": 0.999961
+    },
+    "f1_macro": {
+      "model": "XGBoost",
+      "score": 0.999963
+    }
+  },
+  "test_errors": 33,
+  "beats_baseline": {
+    "accuracy": false,
+    "f1_macro": false
+  },
+  "evaluation_note": "Historical split preserves existing duplicate-feature overlap. Validation and test retrieval use only the inner training pool."
+}

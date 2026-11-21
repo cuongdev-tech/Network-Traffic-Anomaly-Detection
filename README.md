@@ -119,6 +119,12 @@ Kết quả lưu ở `results/unsw_nb15/tabr_metrics.csv`, `tabr_per_class.csv`,
 
 TabR đạt Accuracy **80,4142%** và macro F1 **61,1442%** trên toàn bộ test UNSW-NB15. Hai mốc baseline tương ứng là **79,8944%** của XGBoost và **57,5830%** của Decision Tree. Kiểm tra bổ sung giữ nguyên mô hình đã fit và chỉ tính trên 14.045 dòng test có bộ đặc trưng vắng mặt trong toàn bộ tập train. Trên phần này, Accuracy của TabR là **82,3994%** và của XGBoost là **81,1890%**.
 
+### Thử nghiệm TabR trên CIC-IDS2017
+
+Chạy lại bằng `python -m src.train_tabr --dataset cic --max-epochs 12`. Lượt thử dùng 90.000 dòng lấy phân tầng từ tập train làm dữ liệu huấn luyện và tham chiếu. Checkpoint được chọn trên 40.945 dòng validation. Tập test giữ nguyên 102.362 dòng để đối chiếu cùng bảng baseline CIC.
+
+TabR đạt **99,9678% Accuracy** (33 lỗi), thấp hơn mốc XGBoost **99,9961%** (4 lỗi). Bảng chính thức và giao diện CIC dùng TabNet. Kết quả lượt thử được lưu riêng tại `results/tabr_cic_trial/`.
+
 ## Giao diện desktop — PySide6
 
 Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh các mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Demo với TabR chọn UNSW-NB15 và `giao_dien/mau_du_doan_unsw.csv`. Demo với TabNet chọn CIC-IDS2017 và `giao_dien/mau_du_doan_cic.csv`. Hai file mẫu dùng để kiểm tra luồng dự đoán và xuất CSV.

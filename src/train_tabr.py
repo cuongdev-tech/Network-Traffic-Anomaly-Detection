@@ -1,4 +1,4 @@
-"""Benchmark CPU TabR on the historical 10-class UNSW-NB15 split."""
+"""Benchmark CPU TabR against the saved UNSW-NB15 or CIC-IDS2017 baselines."""
 import argparse
 import json
 import time
@@ -15,7 +15,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, QuantileTransformer
 
 from src.tabr_training import predict, tensors, train
-from src.train_full_unsw import MODEL_DIR, OUT_DIR, plot_confusion_matrix
+from src.train_full_unsw import MODEL_DIR, OUT_DIR, plot_confusion_matrix as plot_unsw_confusion
 from src.unsw_data import load_and_balance_unsw, split_for_tabr, test_index_hash
 
 
@@ -42,16 +42,42 @@ def save_comparison():
 
 
 def run(args):
-    features, labels = load_and_balance_unsw()
+    results_dir = OUT_DIR
+    checkpoint = MODEL_DIR / "tabr_checkpoint.joblib"
+    plot_confusion = plot_unsw_confusion
+    if args.dataset == "cic":
+        from src.train_full_cic import MODEL_DIR as CIC_MODELS, OUT_DIR as CIC_RESULTS
+        from src.train_full_cic import load_cleaned_cic, plot_confusion_matrix as plot_cic_confusion
+
+        frame = load_cleaned_cic()
+        labels = frame.pop("Label")
+        features = frame.select_dtypes(include=[np.number])
+        results_dir = CIC_RESULTS / "tabr_cic_trial"
+        checkpoint = CIC_MODELS / "tabr_trial_checkpoint.joblib"
+        plot_confusion = plot_cic_confusion
+    else:
+        features, labels = load_and_balance_unsw()
     encoder = LabelEncoder()
     y = encoder.fit_transform(labels)
     classes = encoder.classes_.tolist()
     inner, validation, testing, y_inner, y_validation, y_test = split_for_tabr(features, y)
     split_hash = test_index_hash(testing)
     train_size = len(inner) + len(validation)
-    reference = json.loads((OUT_DIR / "tabm_meta.json").read_text(encoding="utf-8"))
-    if reference["test_indices_sha256"] != split_hash or reference["classes"] != classes:
-        raise ValueError("Expected the same evaluation rows and labels as the TabM experiment.")
+    if args.dataset == "cic":
+        baseline_dir = results_dir.parent
+        reference = json.loads((baseline_dir / "baselines_meta.json").read_text(encoding="utf-8"))
+        if (reference["train"], reference["test"], reference["classes"]) != (train_size, len(testing), classes):
+            raise ValueError("CIC baselines use a different split or class set.")
+        baselines = pd.read_csv(baseline_dir / "baselines_metrics.csv").set_index("model")
+        baseline_scores = {
+            metric: {"model": baselines[metric].idxmax(), "score": float(baselines[metric].max())}
+            for metric in ("accuracy", "f1_macro")
+        }
+    else:
+        reference = json.loads((OUT_DIR / "tabm_meta.json").read_text(encoding="utf-8"))
+        if reference["test_indices_sha256"] != split_hash or reference["classes"] != classes:
+            raise ValueError("Expected the same evaluation rows and labels as the TabM experiment.")
+        baseline_scores = reference["baseline"]
     if args.pilot:
         inner, _, y_inner, _ = train_test_split(
             inner, y_inner, train_size=20_000, stratify=y_inner, random_state=42,
@@ -59,6 +85,13 @@ def run(args):
         validation, _, y_validation, _ = train_test_split(
             validation, y_validation, train_size=3_000, stratify=y_validation, random_state=42,
         )
+    elif args.dataset == "cic":
+        # Bound this CPU trial to a stratified training/reference sample. Validation and test stay intact.
+        inner, _, y_inner, _ = train_test_split(
+            inner, y_inner, train_size=90_000, stratify=y_inner, random_state=42,
+        )
+        print(f"CIC trial: {len(inner):,} fit/reference, {len(validation):,} validation, "
+              f"{len(testing):,} held out", flush=True)
     preprocessor = make_preprocessor(inner)
     x_train = tensors(preprocessor.fit_transform(inner))
     x_val = tensors(preprocessor.transform(validation))
@@ -82,7 +115,6 @@ def run(args):
     for average in ("weighted", "macro"):
         for name, metric in (("precision", precision_score), ("recall", recall_score), ("f1", f1_score)):
             metrics[f"{name}_{average}"] = metric(y_test, predicted, average=average, zero_division=0)
-    baseline_scores = reference["baseline"]
     report = pd.DataFrame(classification_report(
         y_test, predicted, labels=np.arange(len(classes)), target_names=classes,
         output_dict=True, zero_division=0,
@@ -96,6 +128,7 @@ def run(args):
         "architecture": "CPU TabR with approximate IVF-flat search and cached training contexts",
         "selection_metric": "validation accuracy", "max_epochs": args.max_epochs, "threads": args.threads,
         "selected": best, "history": history, "baseline": baseline_scores,
+        "test_errors": int((y_test != predicted).sum()),
         "beats_baseline": {
             name: round(metrics[name], 6) > round(scores["score"], 6)
             for name, scores in baseline_scores.items()
@@ -103,23 +136,26 @@ def run(args):
         "evaluation_note": "Historical split preserves existing duplicate-feature overlap. "
                            "Validation and test retrieval use only the inner training pool.",
     }
+    results_dir.mkdir(parents=True, exist_ok=True)
     joblib.dump({"weights": model.state_dict(), "preprocessor": preprocessor,
                  "classes": classes, "features": list(features), "input_width": x_train.shape[1]},
-                MODEL_DIR / "tabr_checkpoint.joblib", compress=3)
-    pd.DataFrame([metrics]).to_csv(OUT_DIR / "tabr_metrics.csv", index=False)
-    report.to_csv(OUT_DIR / "tabr_per_class.csv", index=False)
-    (OUT_DIR / "tabr_meta.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
-    plot_confusion_matrix(
+                checkpoint, compress=3)
+    pd.DataFrame([metrics]).to_csv(results_dir / "tabr_metrics.csv", index=False)
+    report.to_csv(results_dir / "tabr_per_class.csv", index=False)
+    (results_dir / "tabr_meta.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    plot_confusion(
         labels=classes, y_true=encoder.inverse_transform(y_test), y_pred=encoder.inverse_transform(predicted),
-        title="TabR", filename=OUT_DIR / "cm_tabr.png",
+        title="TabR", filename=results_dir / "cm_tabr.png",
     )
-    save_comparison()
+    if args.dataset == "unsw":
+        save_comparison()
     print(pd.DataFrame([metrics]).to_string(index=False), flush=True)
     print(f"Baseline comparison: {metadata['beats_baseline']}", flush=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dataset", choices=("unsw", "cic"), default="unsw")
     parser.add_argument("--max-epochs", type=int, default=20)
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--pilot", action="store_true")
