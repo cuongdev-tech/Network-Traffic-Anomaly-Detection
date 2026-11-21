@@ -35,25 +35,25 @@ Nhận xét chính:
 - **DDoS**: flow kéo dài (~1,9 giây), bytes/s thấp, chỉ nhắm 4 port.
 - **BENIGN**: đa dạng port nhất (30.794 port).
 
-## Giai đoạn 3 — 5 mô hình baseline: LR / Decision Tree / KNN / Random Forest / XGBoost
+## Giai đoạn 3 — Baseline Logistic Regression / Decision Tree / KNN
 
-`src/train_baselines.py` đọc `cicids_60k.csv.gz`, chia train/test 70/30 (stratified, seed 42), train 5 mô hình học máy cổ điển và chạy thêm 5-fold cross-validation.
+`src/train_baselines.py` đọc `cicids_60k.csv.gz`, chia train/test 70/30 (stratified, seed 42), train 3 mô hình và chạy thêm 5-fold cross-validation.
 
 | Mô hình | Accuracy | Precision | Recall | F1 weighted | F1 5-fold CV |
 |---|---|---|---|---|---|
-| XGBoost | 0.9999 | 0.9999 | 0.9999 | 0.9999 | 0.9998 ± 0.0001 |
-| Random Forest | 0.9995 | 0.9995 | 0.9995 | 0.9995 | 0.9996 ± 0.0001 |
 | Decision Tree | 0.9992 | 0.9992 | 0.9992 | 0.9992 | 0.9992 ± 0.0004 |
 | KNN | 0.9990 | 0.9990 | 0.9990 | 0.9990 | 0.9991 ± 0.0003 |
 | Logistic Regression | 0.9966 | 0.9966 | 0.9966 | 0.9966 | 0.9961 ± 0.0007 |
 
-Kết quả lưu ở `results/baselines_metrics.csv` (có cột `group = baseline`), `baselines_cv.csv`, `baselines_per_class.csv`, `cm_baseline_*.png`, `baselines_compare.png`.
+Kết quả lưu ở `results/baselines_metrics.csv`, `baselines_cv.csv`, `baselines_per_class.csv`, `cm_*.png`, `baselines_compare.png`.
+
+Random Forest cũng dùng chung `data/processed/cicids_60k.csv.gz`. Chạy `python src/train_classifier.py` để train riêng Random Forest; model được lưu ở `models/cic/random_forest_attack.joblib`.
 
 Model CIC được lưu trong `models/cic/`; model UNSW-NB15 được lưu riêng trong `models/unsw_nb15/`.
 
-## Giai đoạn 4 — Train riêng Random Forest / XGBoost (split 80/20)
+## Giai đoạn 4 — Random Forest và XGBoost (CIC-IDS2017 + UNSW-NB15)
 
-Random Forest và XGBoost đã được gộp vào Giai đoạn 3 (cùng split 70/30 với các baseline còn lại). Script `src/train_random_forest_xgboost.py` giữ lại để train model riêng cho giao diện, chia train/test **80/20** (stratified, seed 42) nên số liệu dưới đây **không dùng để so sánh với baseline**:
+`src/train_random_forest_xgboost.py` huấn luyện Random Forest (300 cây) và XGBoost trên từng bộ dữ liệu, chia train/test **80/20** (stratified, seed 42). Trọng số mỗi bộ được lưu riêng theo dataset:
 
 - CIC-IDS2017: 60.000 flow, 77 đặc trưng, 3 lớp → `models/cic/random_forest_attack.joblib`, `models/cic/xgboost_attack.joblib`.
 - UNSW-NB15: 60.000 dòng (mặc định), 34 đặc trưng, BENIGN/ATTACK → `models/unsw_nb15/random_forest_attack.joblib`, `models/unsw_nb15/xgboost_attack.joblib`.
@@ -75,59 +75,59 @@ python src/train_random_forest_xgboost.py --dataset unsw --sample 0
 
 Kết quả lưu ở `results/random_forest_xgboost_metrics.csv`, `results/random_forest_xgboost_per_class.csv`, `results/random_forest_xgboost_compare.png`, `cm_random_forest.png`, `cm_xgboost.png`; nhánh UNSW tương tự trong `results/unsw_nb15/`.
 
-## Giai đoạn 5 — Mạng nơron MLP (CIC-IDS2017 + UNSW-NB15)
+## Luồng huấn luyện hiện tại — 5 model ML và TabNet
 
-`src/train_mlp.py` huấn luyện MLP với 2 lớp ẩn `(128, 64)`, ReLU, Adam, early stopping, cùng split **80/20** (stratified, seed 42) như Random Forest và XGBoost. Đặc trưng số dùng `QuantileTransformer(output_distribution="normal")`; UNSW-NB15 giữ imputer và one-hot cho biến phân loại. Learning rate là `0.0003` cho CIC và `0.001` cho UNSW, chờ 30 epoch không cải thiện trước khi dừng, tối đa 400 epoch.
+MLP đã được thay bằng **TabNet**. Dùng các script mới dưới đây; các mục baseline lấy mẫu 60k phía trên và phần UNSW nhị phân phía dưới là luồng cũ, không chạy lại để ghi đè model hiện tại.
 
-Cấu hình được chọn trên validation nằm trong tập train, gom các dòng trùng toàn bộ đặc trưng vào cùng nhóm để không xuất hiện ở cả hai phía của validation. Các thử nghiệm được lưu trong `results/mlp_validation_candidates.csv`; tập test 12.000 dòng của mỗi dataset được giữ nguyên để đối chiếu trước/sau trong `results/mlp_improvement.csv`.
-
-- Model: `models/cic/mlp_attack.joblib`, `models/unsw_nb15/mlp_attack.joblib`.
-- Kết quả: `results/mlp_metrics.csv`, `results/mlp_per_class.csv`, `results/mlp_meta.json`, `results/cm_mlp.png`; nhánh UNSW trong `results/unsw_nb15/`.
-- So sánh 3 mô hình: `results/all_models_metrics.csv`, `results/all_models_compare.png` (và nhánh UNSW).
+| Dataset | Dòng dùng | Train / test | Đặc trưng gốc | Lớp |
+|---|---:|---:|---:|---|
+| CIC | 511.807 | 409.445 / 102.362 | 77 | BENIGN, DDoS, PortScan |
+| UNSW | 184.673, sau giảm Normal còn 20.000 | 147.738 / 36.935 | 34 | Normal + 9 loại tấn công |
 
 ```bash
-python src/train_mlp.py --dataset cic
-python src/train_mlp.py --dataset unsw
-python src/train_mlp.py
+python src/train_full_cic.py --all
+python src/train_full_unsw.py --all
 ```
 
-| Bộ dữ liệu | Mô hình | Accuracy | F1 weighted | F1 macro |
-|---|---|---:|---:|---:|
-| CIC-IDS2017 | MLP | 0.9996 | 0.9996 | 0.9996 |
-| UNSW-NB15 | MLP | 0.9192 | 0.9194 | 0.9129 |
+CIC: LR/KNN/TabNet dùng StandardScaler; cây dùng đặc trưng số trực tiếp. UNSW: 5 model ML dùng imputer + StandardScaler + one-hot, fit trên train. TabNet UNSW dùng quantile cho cột số và embedding cho proto/service/state; tiền xử lý chỉ fit trên phần train bên trong sau khi tách validation. `models/unsw_nb15/preprocessor_bundle.joblib` là bộ tiền xử lý của các model ML cũ; TabNet dùng preprocessor riêng trong `tabnet_bundle.joblib`.
 
-Accuracy trước/sau lần tối ưu này: CIC **99,9417% → 99,9583%**, UNSW **91,4167% → 91,9167%**. Đây là kết quả trên split hiện tại; test vẫn có các dòng trùng đặc trưng với train và nhánh UNSW vẫn gộp hai file rồi chia lại. Vì vậy chưa dùng các điểm này để khẳng định hiệu quả trên lưu lượng mạng mới hoặc so sánh trực tiếp với baseline dùng split chính thức.
+Để cải thiện riêng TabNet UNSW mà giữ 5 model ML hiện tại:
+
+```bash
+python -m src.tune_tabnet_unsw --max-epochs 80 --threads 4
+```
+
+Lệnh giữ nguyên 10 lớp và split 80/20 hiện có, tách 10% phần train làm validation, batch 2.048, learning rate giảm mỗi 20 epoch và early stopping sau 15 epoch không cải thiện. Model mới chỉ thay model cũ khi validation accuracy tăng và macro F1 không giảm, sau đó mới đánh giá một lần trên test. Bản cũ được giữ trong `models/unsw_nb15/tabnet_before_tuning/` và `results/unsw_nb15/tabnet_before_tuning/`. Lịch sử học và đánh giá validation ghi ở `tabnet_tuning_history.csv`, `tabnet_tuning_validation.json`; so sánh test trước/sau ở `tabnet_improvement.csv`. File này mô tả kết quả đo, không dùng chọn cấu hình. Chạy toàn bộ UNSW qua `train_full_unsw.py` cũng dùng cấu hình TabNet mới.
+
+TabNet lưu trọng số ở `tabnet_attack.zip` cùng metadata/scaler hoặc preprocessor trong `tabnet_bundle.joblib`. Phần dự đoán nạp trọng số trên CPU, áp dụng đúng tiền xử lý trước khi predict. Kết quả ghi `baselines_metrics.csv`, `tabnet_metrics.csv`, `all_models_metrics.csv` và các bảng từng lớp/ảnh confusion matrix theo dataset.
+
+Đây vẫn là đánh giá offline; chưa khử triệt để mẫu trùng train/test và chưa có bắt gói realtime. Giảm riêng lớp Normal không đồng nghĩa cả 10 lớp đã cân bằng.
 
 ## Giao diện desktop — PySide6
 
-Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh sáu mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Giao diện đọc trực tiếp các file trong `results/`, không cần nạp model hoặc chạy huấn luyện.
+Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh sáu mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Dùng `giao_dien/mau_du_doan_cic.csv` để thử nhanh với dataset CIC và model TabNet; file mẫu không có nhãn và không dùng để đánh giá accuracy.
 
 ```bash
 python -m pip install -r giao_dien/requirements.txt
 python giao_dien/main.py
 ```
 
+Kết quả chính trên giao diện và cột `prediction_class` trong CSV là **Lớp dự đoán**: UNSW có **10 lớp**, gồm **Bình thường (Normal)** và **Analysis, Backdoor, DoS, Exploits, Fuzzers, Generic, Reconnaissance, Shellcode, Worms**. CIC có **Bình thường, DDoS, PortScan**. Cột `prediction` trong CSV giữ nhãn gốc model để đối chiếu; các cột cảnh báo 0/1 chỉ được giữ bổ sung trong CSV để tương thích, không thay thế kết quả phân loại 10 lớp.
+
 Chọn dataset rồi nhấn **Làm mới** sau khi chạy lại các script. Cột train/test cho biết cách chia dữ liệu của từng nhóm mô hình; các mô hình dùng split khác nhau cần được đánh giá lại trên cùng tập test trước khi kết luận mô hình tốt hơn.
 
 ## Chạy lại
 
 ```bash
-pip install -r requirements.txt
-python src/prepare_cicids.py
-python src/eda_cicids.py
-python src/train_baselines.py --cv
-python src/train_unsw_baselines.py
-python src/compare_baselines.py
-python src/train_classifier.py
-python src/train_random_forest_xgboost.py
-python src/train_mlp.py
+python -m pip install -r requirements.txt -r giao_dien/requirements.txt
+python src/train_full_cic.py --all
+python src/train_full_unsw.py --all
+python giao_dien/main.py
 ```
-
-Notebook: `notebooks/04_baselines.ipynb`, `05_eda_cicids.ipynb`.
 
 ## Ghi chú cho thành viên khác
 
-MLP dùng file `data/processed/cicids_60k.csv.gz` với split **80/20**, trong khi 5 baseline ở Giai đoạn 3 dùng split 70/30. Muốn so sánh công bằng thì MLP phải chạy lại với `TEST_SIZE = 0.3` và cùng tập test:
+Random Forest / XGBoost / TabNet dùng file `data/processed/cicids_60k.csv.gz` và cùng split 80/20 dưới đây. Các script cũ train_baselines.py vẫn dùng split 70/30; luồng train_full_* mới dùng 80/20 cho tất cả model:
 
 ```python
 import pandas as pd
@@ -138,12 +138,12 @@ data = pd.read_csv("data/processed/cicids_60k.csv.gz")
 X = data.drop(columns=["Label"]).select_dtypes(include=["number"])
 y = LabelEncoder().fit_transform(data["Label"])
 Xtr, Xte, ytr, yte = train_test_split(
-    X, y, test_size=0.3, random_state=42, stratify=y)
+    X, y, test_size=0.2, random_state=42, stratify=y)
 ```
 
 ## Baseline bổ sung — UNSW-NB15
 
-Năm baseline Logistic Regression, Decision Tree, KNN, Random Forest và XGBoost cũng chạy trên [UNSW-NB15 của Kaggle](https://www.kaggle.com/datasets/dhoogla/unswnb15), với nhãn nhị phân `label` (BENIGN/ATTACK). Hai file Parquet `UNSW_NB15_training-set.parquet` và `UNSW_NB15_testing-set.parquet` được lưu trong Git tại `data/raw/unsw_nb15/`; sau khi clone/pull không cần tải lại. Giữ nguyên split train/test chính thức; mặc định lấy mẫu phân tầng tổng cộng 60.000 dòng để KNN có thời gian chạy hợp lý.
+Ba baseline Logistic Regression, Decision Tree và KNN cũng có thể chạy trên [UNSW-NB15 của Kaggle](https://www.kaggle.com/datasets/dhoogla/unswnb15), với nhãn nhị phân `label` (BENIGN/ATTACK). Hai file Parquet `UNSW_NB15_training-set.parquet` và `UNSW_NB15_testing-set.parquet` được lưu trong Git tại `data/raw/unsw_nb15/`; sau khi clone/pull không cần tải lại. Giữ nguyên split train/test chính thức; mặc định lấy mẫu phân tầng tổng cộng 60.000 dòng để KNN có thời gian chạy hợp lý.
 
 ```bash
 python src/train_unsw_baselines.py
@@ -156,12 +156,10 @@ Lần chạy hiện tại dùng 42.000 dòng train và 18.000 dòng test, với 
 | Mô hình | Accuracy | F1 weighted | F1 macro |
 |---|---:|---:|---:|
 | Decision Tree | 0.8853 | 0.8848 | 0.8833 |
-| XGBoost | 0.8680 | 0.8651 | 0.8623 |
-| Random Forest | 0.8649 | 0.8618 | 0.8588 |
 | KNN | 0.8323 | 0.8274 | 0.8234 |
 | Logistic Regression | 0.8016 | 0.7993 | 0.7958 |
 
-Kết quả và biểu đồ lưu ở `results/unsw_nb15/`; model lưu riêng ở `models/unsw_nb15/`, không ghi đè model CIC. File Parquet cần thư viện `pyarrow`, đã khai báo trong `requirements.txt`. Dataset Kaggle có giấy phép CC BY-NC-SA 4.0; cần ghi công Laurens D'Hooge và các tác giả gốc Nour Moustafa, Jill Slay, đồng thời tuân thủ điều khoản phi thương mại và chia sẻ tương tự. Tham khảo bài báo gốc “UNSW-NB15: a comprehensive data set for network intrusion detection systems” (Moustafa & Slay, 2015).
+Kết quả và biểu đồ lưu ở `results/unsw_nb15/`; ba model lưu riêng ở `models/unsw_nb15/`, không ghi đè model CIC. File Parquet cần thư viện `pyarrow`, đã khai báo trong `requirements.txt`. Dataset Kaggle có giấy phép CC BY-NC-SA 4.0; cần ghi công Laurens D'Hooge và các tác giả gốc Nour Moustafa, Jill Slay, đồng thời tuân thủ điều khoản phi thương mại và chia sẻ tương tự. Tham khảo bài báo gốc “UNSW-NB15: a comprehensive data set for network intrusion detection systems” (Moustafa & Slay, 2015).
 
 EDA riêng cho UNSW-NB15 dùng cả hai split chính thức và lưu bảng thống kê/biểu đồ tại `results/eda_unsw_nb15/`. Báo cáo EDA cũng kiểm tra feature trùng giữa hai split trong `split_feature_overlap.csv`; các bản ghi test trùng đặc trưng với train có thể làm kết quả đánh giá lạc quan hơn:
 

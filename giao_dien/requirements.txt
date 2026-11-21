@@ -1,3 +1,8 @@
 PySide6-Essentials>=6.8,<7
 pandas
 matplotlib
+joblib
+scikit-learn
+xgboost
+torch
+pytorch-tabnet

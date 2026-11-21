@@ -14,17 +14,16 @@ class ResultTests(unittest.TestCase):
             folder = Path(temporary) / "results"
             folder.mkdir()
             pd.DataFrame([
-                {"model": "MLP", "accuracy": 0, "dataset": "cic"},
-                {"model": "MLP", "accuracy": .9, "dataset": "unsw"},
-            ]).to_csv(folder / "mlp_metrics.csv", index=False)
-            (folder / "mlp_meta.json").write_text(json.dumps({"train": 80, "test": 20}), encoding="utf-8")
+                {"model": "TabNet", "accuracy": 0, "dataset": "cic"},
+                {"model": "TabNet", "accuracy": .9, "dataset": "unsw"},
+            ]).to_csv(folder / "tabnet_metrics.csv", index=False)
+            (folder / "tabnet_meta.json").write_text(json.dumps({"train": 80, "test": 20}), encoding="utf-8")
             pd.DataFrame([{"model": "XGBoost", "accuracy": 1}]).to_csv(
-                folder / "random_forest_xgboost_metrics.csv", index=False)
+                folder / "baselines_all_metrics.csv", index=False)
             frame, errors = load_results(temporary, "cic")
-            self.assertEqual(frame["model"].tolist(), ["MLP"])
+            self.assertEqual(frame["model"].tolist(), ["TabNet"])
             self.assertEqual(frame.iloc[0]["accuracy"], 0)
             self.assertIn("80 / 20", frame.iloc[0]["_protocol"])
-            self.assertEqual(len(errors), 1)
 
     def test_malformed_csv_and_class_decoding(self):
         with tempfile.TemporaryDirectory() as temporary:

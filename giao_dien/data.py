@@ -14,14 +14,13 @@ METRICS = {
 }
 MODEL_NAMES = {
     "LogisticRegression": "Logistic Regression", "DecisionTree": "Decision Tree",
-    "KNN": "KNN", "RandomForest": "Random Forest", "Random Forest": "Random Forest",
-    "XGBoost": "XGBoost", "MLP": "MLP",
+    "KNN": "KNN", "Random Forest": "Random Forest", "XGBoost": "XGBoost",
+    "TabNet": "TabNet",
 }
 SOURCES = (
-    ("baselines", "Baseline",
-     {"LogisticRegression", "DecisionTree", "KNN", "RandomForest", "Random Forest",
-      "XGBoost"}),
-    ("mlp", "Học sâu", {"MLP"}),
+    ("baselines", "Baseline (5 mô hình ML)", {"LogisticRegression", "DecisionTree", "KNN", "Random Forest", "XGBoost"}),
+    ("random_forest_xgboost", "RF / XGBoost", {"Random Forest", "XGBoost"}),
+    ("tabnet", "TabNet (DL Bảng)", {"TabNet"}),
 )
 EDA_CATEGORICAL_FEATURES = {"proto": "Giao thức", "service": "Dịch vụ", "state": "Trạng thái"}
 EDA_METRIC_NAMES = {
@@ -376,7 +375,10 @@ def load_results(root, dataset):
     folder = result_dir(root, dataset)
     frames, issues = [], []
     for stem, group, names in SOURCES:
-        frame, error = read_csv(folder / f"{stem}_metrics.csv")
+        csv_file = folder / f"{stem}_metrics.csv"
+        if not csv_file.is_file():
+            continue
+        frame, error = read_csv(csv_file)
         if error:
             issues.append(error)
             continue
@@ -406,17 +408,23 @@ def load_results(root, dataset):
         frame["_group"], frame["_stem"] = group, stem
         frame["_meta"] = [meta] * len(frame)
         frames.append(frame)
-    return (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()), issues
-
-
-BASELINE_MODELS = {"LogisticRegression", "DecisionTree", "KNN", "RandomForest",
-                   "Random Forest", "XGBoost"}
+    if not frames and not issues:
+        issues.append(f"Chưa có tệp kết quả nào trong thư mục {folder.name}.")
+    res = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if not res.empty:
+        res = res.drop_duplicates(subset=["model"], keep="first").reset_index(drop=True)
+    return res, issues
 
 
 def confusion_path(folder, model):
-    if model in BASELINE_MODELS:
-        return Path(folder) / f"cm_baseline_{model.lower().replace(' ', '')}.png"
-    slug = {"Random Forest": "random_forest", "XGBoost": "xgboost", "MLP": "mlp"}.get(model, model)
+    slug = {
+        "Random Forest": "random_forest",
+        "XGBoost": "xgboost",
+        "TabNet": "tabnet",
+        "DecisionTree": "DecisionTree",
+        "LogisticRegression": "LogisticRegression",
+        "KNN": "KNN",
+    }.get(model, model)
     return Path(folder) / f"cm_{slug}.png"
 
 

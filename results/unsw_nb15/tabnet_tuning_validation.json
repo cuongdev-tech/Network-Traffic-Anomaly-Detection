@@ -1,0 +1,24 @@
+{
+  "fit_train": 132964,
+  "validation": 14774,
+  "preprocessing": "Numeric quantiles + categorical embeddings; fitted on inner train only",
+  "selection_metric": "validation accuracy",
+  "max_epochs": 80,
+  "best_epoch": 71,
+  "epochs_run": 80,
+  "batch_size": 2048,
+  "virtual_batch_size": 256,
+  "n_d": 24,
+  "n_a": 24,
+  "n_steps": 4,
+  "validation_scores": {
+    "accuracy": 0.7971436307025856,
+    "f1_macro": 0.5149429934924579
+  },
+  "train_time_s": 902.45,
+  "incumbent_validation_scores": {
+    "accuracy": 0.7574116691485041,
+    "f1_macro": 0.41022072647522245
+  },
+  "promoted": true
+}

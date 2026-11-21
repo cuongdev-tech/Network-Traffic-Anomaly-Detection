@@ -1,0 +1,21 @@
+{
+  "dataset": "UNSW-NB15 (10 loai: Normal + 9 Attack Categories)",
+  "rows_used": 184673,
+  "features": 34,
+  "classes": [
+    "Analysis",
+    "Backdoor",
+    "DoS",
+    "Exploits",
+    "Fuzzers",
+    "Generic",
+    "Normal",
+    "Reconnaissance",
+    "Shellcode",
+    "Worms"
+  ],
+  "train": 147738,
+  "test": 36935,
+  "split": "80/20 Stratified",
+  "architecture": "TabNet (Attentive Tabular Deep Learning)"
+}

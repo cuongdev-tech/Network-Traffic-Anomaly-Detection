@@ -1,12 +1,13 @@
 {
   "dataset": "CIC-IDS2017 Friday afternoon (DDoS + PortScan)",
-  "rows_used": 60000,
+  "rows_used": 511807,
   "features": 77,
   "classes": [
     "BENIGN",
     "DDoS",
     "PortScan"
   ],
-  "train": 42000,
-  "test": 18000
+  "train": 409445,
+  "test": 102362,
+  "split": "80/20 Stratified"
 }
