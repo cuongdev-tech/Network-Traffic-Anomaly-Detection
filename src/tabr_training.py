@@ -1,12 +1,16 @@
 """CPU TabR adapted from the architecture in https://arxiv.org/abs/2307.14338."""
 import copy
+import json
 import time
 
 import faiss
 import numpy as np
 import torch
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.preprocessing import LabelEncoder
 from torch import nn
+
+from src.unsw_data import load_and_balance_unsw, split_for_tabr, test_index_hash
 
 
 CONTEXT_SIZE = 24
@@ -74,16 +78,55 @@ def encode_keys(model, features):
     return torch.cat([model.keys(batch) for batch in features.split(8192)])
 
 
-@torch.inference_mode()
-def predict(model, features, labels, query, bank_keys=None):
-    model.eval()
-    if bank_keys is None:
-        bank_keys = encode_keys(model, features)
-    neighbors = NeighborSearch(bank_keys.numpy()).search(encode_keys(model, query).numpy())
-    output = []
-    for batch, indices in zip(query.split(BATCH_SIZE), neighbors.split(BATCH_SIZE)):
-        output.append(model.predict_logits(batch, bank_keys[indices], labels[indices]).argmax(dim=1))
-    return torch.cat(output).numpy()
+def tensors(values):
+    return torch.from_numpy(np.ascontiguousarray(values, dtype=np.float32))
+
+
+class TabRClassifier:
+    def __init__(self, model, reference, labels):
+        self.model = model.eval()
+        self.n_features_in_ = reference.shape[1]
+        self.keys = encode_keys(self.model, reference)
+        self.labels = labels
+        self.search = NeighborSearch(self.keys.numpy())
+
+    @torch.inference_mode()
+    def logits(self, query):
+        neighbors = self.search.search(encode_keys(self.model, query).numpy())
+        output = []
+        for batch, indices in zip(query.split(BATCH_SIZE), neighbors.split(BATCH_SIZE)):
+            output.append(self.model.predict_logits(batch, self.keys[indices], self.labels[indices]))
+        return torch.cat(output)
+
+    def predict_proba(self, query):
+        return self.logits(tensors(query)).softmax(dim=1).numpy()
+
+
+def load_classifier(root, bundle):
+    metadata_path = root / "results" / "unsw_nb15" / "tabr_meta.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    features, labels = load_and_balance_unsw(
+        data_dir=root / "data" / "raw" / "unsw_nb15", verbose=False,
+    )
+    encoder = LabelEncoder()
+    encoded = encoder.fit_transform(labels)
+    reference, _, test, y_reference, _, _ = split_for_tabr(features, encoded)
+    if (list(features) != bundle["features"] or encoder.classes_.tolist() != bundle["classes"]
+            or len(reference) != metadata["fit_train"]
+            or test_index_hash(test) != metadata["test_indices_sha256"]):
+        raise ValueError("Dữ liệu tham chiếu UNSW-NB15 không khớp với checkpoint TabR.")
+
+    torch.set_num_threads(metadata["threads"])
+    faiss.omp_set_num_threads(metadata["threads"])
+    transformed = tensors(bundle["preprocessor"].transform(reference))
+    model = TabR(bundle["input_width"], len(bundle["classes"]))
+    model.load_state_dict(bundle["weights"])
+    return TabRClassifier(model, transformed, torch.as_tensor(y_reference, dtype=torch.long))
+
+
+def predict(model, features, labels, query):
+    classifier = TabRClassifier(model, features, labels)
+    return classifier.logits(query).argmax(dim=1).numpy()
 
 
 def train(training, labels, validation, y_validation, *, epochs, threads, refresh_epochs=7):

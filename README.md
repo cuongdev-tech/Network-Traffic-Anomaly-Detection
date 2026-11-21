@@ -75,33 +75,18 @@ python src/train_random_forest_xgboost.py --dataset unsw --sample 0
 
 Kết quả lưu ở `results/random_forest_xgboost_metrics.csv`, `results/random_forest_xgboost_per_class.csv`, `results/random_forest_xgboost_compare.png`, `cm_random_forest.png`, `cm_xgboost.png`; nhánh UNSW tương tự trong `results/unsw_nb15/`.
 
-## Luồng huấn luyện hiện tại — 5 model ML và TabNet
+## Mô hình dùng trong bản nộp
 
-MLP đã được thay bằng **TabNet**. Dùng các script mới dưới đây; các mục baseline lấy mẫu 60k phía trên và phần UNSW nhị phân phía dưới là luồng cũ, không chạy lại để ghi đè model hiện tại.
+Mỗi bộ dữ liệu có năm baseline gồm Logistic Regression, Decision Tree, KNN, Random Forest và XGBoost. Mô hình học sâu chính là **TabNet cho CIC-IDS2017** và **TabR cho UNSW-NB15**.
 
 | Dataset | Dòng dùng | Train / test | Đặc trưng gốc | Lớp |
 |---|---:|---:|---:|---|
-| CIC | 511.807 | 409.445 / 102.362 | 77 | BENIGN, DDoS, PortScan |
-| UNSW | 184.673, sau giảm Normal còn 20.000 | 147.738 / 36.935 | 34 | Normal + 9 loại tấn công |
+| CIC-IDS2017 | 511.807 | 409.445 / 102.362 | 77 | BENIGN, DDoS, PortScan |
+| UNSW-NB15 | 184.673, sau khi giảm Normal còn 20.000 | 147.738 / 36.935 | 34 | Normal + 9 loại tấn công |
 
-```bash
-python src/train_full_cic.py --all
-python src/train_full_unsw.py --all
-```
+Bảng chính thức của từng bộ nằm ở `results/all_models_metrics.csv` và `results/unsw_nb15/all_models_metrics.csv`. Các kết quả TabNet và TabM trên UNSW được lưu trong các tệp riêng để đối chiếu. Các script baseline 60.000 dòng và UNSW nhị phân thuộc luồng thực nghiệm cũ. `src/train_full_unsw.py --all` tái lập thử nghiệm UNSW với TabNet. Dùng mục TabR bên dưới để tái lập bảng chính thức của UNSW.
 
-CIC: LR/KNN/TabNet dùng StandardScaler; cây dùng đặc trưng số trực tiếp. UNSW: 5 model ML dùng imputer + StandardScaler + one-hot, fit trên train. TabNet UNSW dùng quantile cho cột số và embedding cho proto/service/state; tiền xử lý chỉ fit trên phần train bên trong sau khi tách validation. `models/unsw_nb15/preprocessor_bundle.joblib` là bộ tiền xử lý của các model ML cũ; TabNet dùng preprocessor riêng trong `tabnet_bundle.joblib`.
-
-Để cải thiện riêng TabNet UNSW mà giữ 5 model ML hiện tại:
-
-```bash
-python -m src.tune_tabnet_unsw --max-epochs 80 --threads 4
-```
-
-Lệnh giữ nguyên 10 lớp và split 80/20 hiện có, tách 10% phần train làm validation, batch 2.048, learning rate giảm mỗi 20 epoch và early stopping sau 15 epoch không cải thiện. Model mới chỉ thay model cũ khi validation accuracy tăng và macro F1 không giảm, sau đó mới đánh giá một lần trên test. Bản cũ được giữ trong `models/unsw_nb15/tabnet_before_tuning/` và `results/unsw_nb15/tabnet_before_tuning/`. Lịch sử học và đánh giá validation ghi ở `tabnet_tuning_history.csv`, `tabnet_tuning_validation.json`; so sánh test trước/sau ở `tabnet_improvement.csv`. File này mô tả kết quả đo, không dùng chọn cấu hình. Chạy toàn bộ UNSW qua `train_full_unsw.py` cũng dùng cấu hình TabNet mới.
-
-TabNet lưu trọng số ở `tabnet_attack.zip` cùng metadata/scaler hoặc preprocessor trong `tabnet_bundle.joblib`. Phần dự đoán nạp trọng số trên CPU, áp dụng đúng tiền xử lý trước khi predict. Kết quả ghi `baselines_metrics.csv`, `tabnet_metrics.csv`, `all_models_metrics.csv` và các bảng từng lớp/ảnh confusion matrix theo dataset.
-
-Đây vẫn là đánh giá offline; chưa khử triệt để mẫu trùng train/test và chưa có bắt gói realtime. Giảm riêng lớp Normal không đồng nghĩa cả 10 lớp đã cân bằng.
+Các phép đo thực hiện offline, dùng split 80/20 và có thể có dòng test trùng đặc trưng với train. Đánh giá TabR đầy đủ hiện có trên UNSW-NB15.
 
 ## Thử nghiệm TabM
 
@@ -116,11 +101,11 @@ python -m src.train_tabm --dataset cic
 
 Script dùng đúng cách chia 80/20 (seed 42) của bảng baseline hiện tại. Tiền xử lý, các ngưỡng embedding và hai cấu hình trọng số lớp được fit hoặc chọn bên trong tập train. Mặc định chọn checkpoint theo Accuracy trên validation. Dùng `--selection-metric f1_macro` nếu macro F1 là chỉ số chính đã thống nhất trước khi chạy. Tập test chỉ dùng để đánh giá cấu hình đã chọn. Lần thử này giữ split lịch sử nên train và test vẫn có các dòng trùng đặc trưng.
 
-Kết quả gồm `tabm_metrics.csv`, `tabm_per_class.csv`, `tabm_meta.json` và `cm_tabm.png` trong thư mục kết quả của từng bộ dữ liệu. File `tabm_bundle.joblib` chứa cả model và bộ tiền xử lý. Giao diện nạp các tệp TabM khi có sẵn và hiển thị kết quả TabNet để đối chiếu.
+Kết quả gồm `tabm_metrics.csv`, `tabm_per_class.csv`, `tabm_meta.json` và `cm_tabm.png` trong thư mục kết quả của từng bộ dữ liệu. File `tabm_bundle.joblib` chứa cả model và bộ tiền xử lý. Các tệp này lưu kết quả thử nghiệm TabM.
 
-Trên 36.935 mẫu test UNSW-NB15, TabM đạt Accuracy 79,3827% và macro F1 50,5684%. XGBoost đạt Accuracy cao nhất trong các baseline (79,8944%), còn Decision Tree đạt macro F1 cao nhất (57,5830%). TabM được giữ trong giao diện để đối chiếu thực nghiệm với TabNet và các baseline.
+Trên 36.935 mẫu test UNSW-NB15, TabM đạt Accuracy 79,3827% và macro F1 50,5684%. XGBoost đạt Accuracy cao nhất trong các baseline (79,8944%), còn Decision Tree đạt macro F1 cao nhất (57,5830%). Bảng thử nghiệm TabM được giữ để đối chiếu với TabNet và các baseline.
 
-## Thử nghiệm TabR trên UNSW-NB15
+## TabR trên UNSW-NB15
 
 ```bash
 python -m pip install -r requirements.txt
@@ -130,13 +115,13 @@ python -m src.train_tabr --max-epochs 20
 
 Pilot dùng 20.000 dòng huấn luyện và 3.000 dòng validation để đo thời gian chạy. Lượt đầy đủ dùng cùng split 80/20 và 10 nhãn với các baseline UNSW hiện có. Biến thể CPU sử dụng FAISS IVF-flat với 24 mẫu tham chiếu, làm mới danh sách láng giềng của train theo từng giai đoạn rồi giữ cố định để giảm thời gian chạy. Các truy vấn validation và test chỉ tìm trên phần train bên trong. Checkpoint được chọn theo Accuracy trên validation, rồi đánh giá trên tập test 36.935 dòng.
 
-Kết quả lưu ở `results/unsw_nb15/tabr_metrics.csv`, `tabr_per_class.csv`, `tabr_meta.json` và `cm_tabr.png`. Checkpoint chứa trọng số và bộ tiền xử lý; để đánh giá lại cần dựng chỉ mục tham chiếu từ tập train. Split lịch sử vẫn có các dòng trùng đặc trưng giữa train và test.
+Kết quả lưu ở `results/unsw_nb15/tabr_metrics.csv`, `tabr_per_class.csv`, `tabr_meta.json` và `cm_tabr.png`. Checkpoint chứa trọng số và bộ tiền xử lý. Giao diện tự dựng chỉ mục tham chiếu khi chọn TabR, từ hai file Parquet trong `data/raw/unsw_nb15/` và đúng phần train bên trong đã dùng để đánh giá. Split lịch sử vẫn có các dòng trùng đặc trưng giữa train và test.
 
 TabR đạt Accuracy **80,4142%** và macro F1 **61,1442%** trên toàn bộ test UNSW-NB15. Hai mốc baseline tương ứng là **79,8944%** của XGBoost và **57,5830%** của Decision Tree. Kiểm tra bổ sung giữ nguyên mô hình đã fit và chỉ tính trên 14.045 dòng test có bộ đặc trưng vắng mặt trong toàn bộ tập train. Trên phần này, Accuracy của TabR là **82,3994%** và của XGBoost là **81,1890%**.
 
 ## Giao diện desktop — PySide6
 
-Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh các mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Dùng `giao_dien/mau_du_doan_cic.csv` để thử nhanh với dataset CIC và model TabNet; file mẫu không có nhãn và không dùng để đánh giá accuracy.
+Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh các mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Demo với TabR chọn UNSW-NB15 và `giao_dien/mau_du_doan_unsw.csv`. Demo với TabNet chọn CIC-IDS2017 và `giao_dien/mau_du_doan_cic.csv`. Hai file mẫu dùng để kiểm tra luồng dự đoán và xuất CSV.
 
 ```bash
 python -m pip install -r giao_dien/requirements.txt
@@ -152,7 +137,7 @@ Chọn dataset rồi nhấn **Làm mới** sau khi chạy lại các script. C�
 ```bash
 python -m pip install -r requirements.txt -r giao_dien/requirements.txt
 python src/train_full_cic.py --all
-python src/train_full_unsw.py --all
+python -m src.train_tabr --max-epochs 20
 python giao_dien/main.py
 ```
 

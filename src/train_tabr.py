@@ -1,6 +1,5 @@
 """Benchmark CPU TabR on the historical 10-class UNSW-NB15 split."""
 import argparse
-import hashlib
 import json
 import time
 
@@ -15,13 +14,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, QuantileTransformer
 
-from src.tabr_training import predict, train
-from src.tabnet_training import split_validation
-from src.train_full_unsw import MODEL_DIR, OUT_DIR, load_and_balance_unsw, plot_confusion_matrix
-
-
-def tensors(values):
-    return torch.from_numpy(np.ascontiguousarray(values, dtype=np.float32))
+from src.tabr_training import predict, tensors, train
+from src.train_full_unsw import MODEL_DIR, OUT_DIR, plot_confusion_matrix
+from src.unsw_data import load_and_balance_unsw, split_for_tabr, test_index_hash
 
 
 def make_preprocessor(frame):
@@ -39,16 +34,21 @@ def make_preprocessor(frame):
     ])
 
 
+def save_comparison():
+    baselines = pd.read_csv(OUT_DIR / "baselines_metrics.csv")
+    tabr = pd.read_csv(OUT_DIR / "tabr_metrics.csv")
+    comparison = pd.concat([baselines, tabr], ignore_index=True).sort_values("accuracy", ascending=False)
+    comparison.to_csv(OUT_DIR / "all_models_metrics.csv", index=False)
+
+
 def run(args):
     features, labels = load_and_balance_unsw()
     encoder = LabelEncoder()
     y = encoder.fit_transform(labels)
     classes = encoder.classes_.tolist()
-    training, testing, y_training, y_test = train_test_split(
-        features, y, test_size=0.2, stratify=y, random_state=42,
-    )
-    inner, validation, y_inner, y_validation = split_validation(training, y_training)
-    split_hash = hashlib.sha256(testing.index.to_numpy(dtype="<i8").tobytes()).hexdigest()
+    inner, validation, testing, y_inner, y_validation, y_test = split_for_tabr(features, y)
+    split_hash = test_index_hash(testing)
+    train_size = len(inner) + len(validation)
     reference = json.loads((OUT_DIR / "tabm_meta.json").read_text(encoding="utf-8"))
     if reference["test_indices_sha256"] != split_hash or reference["classes"] != classes:
         raise ValueError("Expected the same evaluation rows and labels as the TabM experiment.")
@@ -90,7 +90,7 @@ def run(args):
     report.insert(0, "model", "TabR")
     metadata = {
         "dataset": reference["dataset"], "rows_used": len(features), "features": features.shape[1],
-        "classes": classes, "train": len(training), "test": len(testing),
+        "classes": classes, "train": train_size, "test": len(testing),
         "split": "80/20 Stratified", "split_seed": 42, "test_indices_sha256": split_hash,
         "fit_train": len(inner), "validation": len(validation),
         "architecture": "CPU TabR with approximate IVF-flat search and cached training contexts",
@@ -113,6 +113,7 @@ def run(args):
         labels=classes, y_true=encoder.inverse_transform(y_test), y_pred=encoder.inverse_transform(predicted),
         title="TabR", filename=OUT_DIR / "cm_tabr.png",
     )
+    save_comparison()
     print(pd.DataFrame([metrics]).to_string(index=False), flush=True)
     print(f"Baseline comparison: {metadata['beats_baseline']}", flush=True)
 

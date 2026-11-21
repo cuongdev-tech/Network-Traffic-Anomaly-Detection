@@ -544,8 +544,14 @@ class Dashboard(QMainWindow):
         if self.prediction_worker is None:
             self.prediction_model.blockSignals(True)
             self.prediction_model.clear()
-            for name in model_paths(self.root, dataset):
+            available = model_paths(self.root, dataset)
+            if "TabR" in available:
+                available.pop("TabNet", None)
+                available.pop("TabM", None)
+            for name in available:
                 self.prediction_model.addItem(MODEL_NAMES[name], name)
+            if "TabR" in available:
+                self.prediction_model.setCurrentIndex(self.prediction_model.findData("TabR"))
             self.prediction_model.blockSignals(False)
             self.clear_prediction()
 

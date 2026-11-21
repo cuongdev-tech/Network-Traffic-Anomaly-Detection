@@ -16,6 +16,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.tabnet_training import train_tabnet
+from src.unsw_data import load_and_balance_unsw
 
 import joblib
 import matplotlib
@@ -44,61 +45,8 @@ from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data" / "raw" / "unsw_nb15"
 OUT_DIR = BASE_DIR / "results" / "unsw_nb15"
 MODEL_DIR = BASE_DIR / "models" / "unsw_nb15"
-
-DROP_COLS = {"label", "attack_cat", "id", "srcip", "dstip", "stime", "ltime"}
-
-
-def load_and_balance_unsw(normal_samples=20000, seed=42):
-    print("=" * 65)
-    print("1. DOC VA CAN BANG DU LIEU UNSW-NB15 (10 LOP)...")
-    train_path = DATA_DIR / "UNSW_NB15_training-set.parquet"
-    test_path = DATA_DIR / "UNSW_NB15_testing-set.parquet"
-    if not train_path.exists() or not test_path.exists():
-        raise FileNotFoundError(f"Khong tim thay file parquet UNSW_NB15 trong {DATA_DIR}")
-
-    frames = []
-    for p in (train_path, test_path):
-        df = pd.read_parquet(p)
-        df.columns = [str(c).strip().lower() for c in df.columns]
-        frames.append(df)
-    data = pd.concat(frames, ignore_index=True)
-    raw_total = len(data)
-    print(f"  -> Tong so dong raw ban dau: {raw_total:,}")
-
-    # Chuan hoa attack_cat (10 lop)
-    data["attack_cat"] = data["attack_cat"].astype(str).str.strip()
-    data.loc[data["attack_cat"].str.lower() == "normal", "attack_cat"] = "Normal"
-
-    print("  -> Phan bo 10 lop truoc khi can bang:")
-    for lbl, count in data["attack_cat"].value_counts().items():
-        print(f"     • {lbl:<15}: {count:>7,} ({count / raw_total * 100:>5.2f}%)")
-
-    # Giam bot so dong cua Normal de can bang voi 9 lop con lai
-    df_normal = data[data["attack_cat"] == "Normal"]
-    df_attack = data[data["attack_cat"] != "Normal"]
-
-    if len(df_normal) > normal_samples:
-        df_normal_balanced = df_normal.sample(n=normal_samples, random_state=seed)
-        print(f"\n  -> Da giam Normal tu {len(df_normal):,} xuong {len(df_normal_balanced):,} dong.")
-    else:
-        df_normal_balanced = df_normal
-
-    balanced_data = pd.concat([df_normal_balanced, df_attack], ignore_index=True)
-    balanced_data = balanced_data.sample(frac=1.0, random_state=seed).reset_index(drop=True)
-
-    print(f"  -> Tong so dong sau khi can bang: {len(balanced_data):,}")
-    print("  -> Phan bo 10 lop sau khi can bang:")
-    for lbl, count in balanced_data["attack_cat"].value_counts().items():
-        print(f"     • {lbl:<15}: {count:>7,} ({count / len(balanced_data) * 100:>5.2f}%)")
-    print("=" * 65)
-
-    y = balanced_data["attack_cat"]
-    X = balanced_data.drop(columns=list(DROP_COLS), errors="ignore")
-    return X, y
-
 
 def plot_confusion_matrix(y_true, y_pred, labels, title, filename):
     cm = confusion_matrix(y_true, y_pred, labels=labels)

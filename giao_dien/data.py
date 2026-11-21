@@ -15,13 +15,14 @@ METRICS = {
 MODEL_NAMES = {
     "LogisticRegression": "Logistic Regression", "DecisionTree": "Decision Tree",
     "KNN": "KNN", "Random Forest": "Random Forest", "XGBoost": "XGBoost",
-    "TabNet": "TabNet", "TabM": "TabM",
+    "TabNet": "TabNet", "TabM": "TabM", "TabR": "TabR",
 }
 SOURCES = (
     ("baselines", "Baseline (5 mô hình ML)", {"LogisticRegression", "DecisionTree", "KNN", "Random Forest", "XGBoost"}),
     ("random_forest_xgboost", "RF / XGBoost", {"Random Forest", "XGBoost"}),
     ("tabnet", "Học sâu", {"TabNet"}),
     ("tabm", "Học sâu", {"TabM"}),
+    ("tabr", "Học sâu", {"TabR"}),
 )
 EDA_CATEGORICAL_FEATURES = {"proto": "Giao thức", "service": "Dịch vụ", "state": "Trạng thái"}
 EDA_METRIC_NAMES = {
@@ -375,7 +376,10 @@ def read_csv(path):
 def load_results(root, dataset):
     folder = result_dir(root, dataset)
     frames, issues = [], []
-    for stem, group, names in SOURCES:
+    sources = SOURCES
+    if dataset == "unsw" and (folder / "tabr_metrics.csv").is_file():
+        sources = [source for source in sources if source[0] not in {"tabnet", "tabm"}]
+    for stem, group, names in sources:
         csv_file = folder / f"{stem}_metrics.csv"
         if not csv_file.is_file():
             continue
@@ -423,6 +427,7 @@ def confusion_path(folder, model):
         "XGBoost": "xgboost",
         "TabNet": "tabnet",
         "TabM": "tabm",
+        "TabR": "tabr",
         "DecisionTree": "DecisionTree",
         "LogisticRegression": "LogisticRegression",
         "KNN": "KNN",

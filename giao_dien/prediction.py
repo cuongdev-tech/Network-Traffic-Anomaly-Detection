@@ -52,6 +52,8 @@ def model_paths(root, dataset):
     filenames.update({"Random Forest": "random_forest_attack.joblib",
                       "XGBoost": "xgboost_attack.joblib", "TabNet": "tabnet_bundle.joblib",
                       "TabM": "tabm_bundle.joblib"})
+    if dataset == "unsw":
+        filenames["TabR"] = "tabr_checkpoint.joblib"
     return {name: folder / filename for name, filename in filenames.items()
             if (folder / filename).is_file()}
 
@@ -83,6 +85,10 @@ def load_bundle(root, dataset, name):
             raise ValueError("Trọng số TabNet không khớp số lớp trong metadata. Cần dùng cùng lần huấn luyện.")
         if not any(key in bundle for key in ("scaler", "preprocessor")):
             raise ValueError("TabNet thiếu scaler/preprocessor đã được fit khi huấn luyện.")
+    if name == "TabR":
+        from src.tabr_training import load_classifier
+
+        bundle["model"] = load_classifier(Path(root), bundle)
     if "model" not in bundle:
         raise ValueError("File model không chứa mô hình dự đoán.")
     if dataset == "unsw" and "classes" in bundle and "preprocessor" not in bundle:
@@ -150,7 +156,7 @@ def predict_file(root, dataset, name, path):
         expected = getattr(model, "n_features_in_", getattr(model, "input_dim", None))
         if expected is not None and batch.shape[1] != expected:
             raise ValueError(f"Sau tiền xử lý có {batch.shape[1]} cột, nhưng model cần {expected}. Kiểm tra bundle huấn luyện.")
-        batch_probabilities = model.predict_proba(batch) if name == "TabM" else None
+        batch_probabilities = model.predict_proba(batch) if name in {"TabM", "TabR"} else None
         output = model.predict(batch) if batch_probabilities is None else batch_probabilities.argmax(axis=1)
         if any(isinstance(value, (int, np.integer)) and not 0 <= int(value) < len(labels) for value in output):
             raise ValueError("Model trả mã lớp ngoài danh sách nhãn đã lưu.")
