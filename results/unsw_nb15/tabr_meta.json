@@ -1,0 +1,171 @@
+{
+  "dataset": "UNSW-NB15 (Normal + 9 Attack Categories)",
+  "rows_used": 184673,
+  "features": 34,
+  "classes": [
+    "Analysis",
+    "Backdoor",
+    "DoS",
+    "Exploits",
+    "Fuzzers",
+    "Generic",
+    "Normal",
+    "Reconnaissance",
+    "Shellcode",
+    "Worms"
+  ],
+  "train": 147738,
+  "test": 36935,
+  "split": "80/20 Stratified",
+  "split_seed": 42,
+  "test_indices_sha256": "942096841d54fc158fac436e5c57a6bcda38fc4319e7aa2f19c2e7e2c65e0ed8",
+  "fit_train": 132964,
+  "validation": 14774,
+  "architecture": "CPU TabR with approximate IVF-flat search and cached training contexts",
+  "selection_metric": "validation accuracy",
+  "max_epochs": 20,
+  "threads": 2,
+  "selected": {
+    "epoch": 17,
+    "accuracy": 0.8098010017598484,
+    "f1_macro": 0.607085149111392,
+    "seconds": 26.67
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "accuracy": 0.7982266143224583,
+      "f1_macro": 0.5244218633703588,
+      "seconds": 67.0
+    },
+    {
+      "epoch": 2,
+      "accuracy": 0.8014078787058345,
+      "f1_macro": 0.5232852146659913,
+      "seconds": 22.31
+    },
+    {
+      "epoch": 3,
+      "accuracy": 0.8007987004196562,
+      "f1_macro": 0.5181671664590353,
+      "seconds": 36.32
+    },
+    {
+      "epoch": 4,
+      "accuracy": 0.8038445918505482,
+      "f1_macro": 0.5603942333082559,
+      "seconds": 29.74
+    },
+    {
+      "epoch": 5,
+      "accuracy": 0.8037769053743062,
+      "f1_macro": 0.5473313948426085,
+      "seconds": 50.87
+    },
+    {
+      "epoch": 6,
+      "accuracy": 0.7987681061323948,
+      "f1_macro": 0.5690426114509938,
+      "seconds": 29.87
+    },
+    {
+      "epoch": 7,
+      "accuracy": 0.8048598889941789,
+      "f1_macro": 0.5460648089300494,
+      "seconds": 56.72
+    },
+    {
+      "epoch": 8,
+      "accuracy": 0.804927575470421,
+      "f1_macro": 0.5687143719696687,
+      "seconds": 33.76
+    },
+    {
+      "epoch": 9,
+      "accuracy": 0.8021524299444971,
+      "f1_macro": 0.5604308998110724,
+      "seconds": 53.21
+    },
+    {
+      "epoch": 10,
+      "accuracy": 0.8067551103289563,
+      "f1_macro": 0.5721730161663457,
+      "seconds": 31.62
+    },
+    {
+      "epoch": 11,
+      "accuracy": 0.8066874238527142,
+      "f1_macro": 0.5742637390518237,
+      "seconds": 42.16
+    },
+    {
+      "epoch": 12,
+      "accuracy": 0.8062136185190198,
+      "f1_macro": 0.570027418722077,
+      "seconds": 51.63
+    },
+    {
+      "epoch": 13,
+      "accuracy": 0.8088533910924597,
+      "f1_macro": 0.5720153504828523,
+      "seconds": 36.17
+    },
+    {
+      "epoch": 14,
+      "accuracy": 0.8095302558548801,
+      "f1_macro": 0.5746789265476487,
+      "seconds": 36.21
+    },
+    {
+      "epoch": 15,
+      "accuracy": 0.8044537701367267,
+      "f1_macro": 0.593939355983915,
+      "seconds": 31.52
+    },
+    {
+      "epoch": 16,
+      "accuracy": 0.8086503316637336,
+      "f1_macro": 0.6027633229896222,
+      "seconds": 33.21
+    },
+    {
+      "epoch": 17,
+      "accuracy": 0.8098010017598484,
+      "f1_macro": 0.607085149111392,
+      "seconds": 26.67
+    },
+    {
+      "epoch": 18,
+      "accuracy": 0.8096656288073643,
+      "f1_macro": 0.5873605243787485,
+      "seconds": 15.41
+    },
+    {
+      "epoch": 19,
+      "accuracy": 0.807838093948829,
+      "f1_macro": 0.5768861322898783,
+      "seconds": 17.86
+    },
+    {
+      "epoch": 20,
+      "accuracy": 0.8093948829023961,
+      "f1_macro": 0.591032725065896,
+      "seconds": 20.79
+    }
+  ],
+  "baseline": {
+    "accuracy": {
+      "model": "XGBoost",
+      "score": 0.798944
+    },
+    "f1_macro": {
+      "model": "DecisionTree",
+      "score": 0.57583
+    }
+  },
+  "beats_baseline": {
+    "accuracy": true,
+    "f1_macro": true
+  },
+  "evaluation_note": "Historical split preserves existing duplicate-feature overlap. Validation and test retrieval use only the inner training pool."
+}

@@ -120,6 +120,20 @@ Kết quả gồm `tabm_metrics.csv`, `tabm_per_class.csv`, `tabm_meta.json` và
 
 Trên 36.935 mẫu test UNSW-NB15, TabM đạt Accuracy 79,3827% và macro F1 50,5684%. XGBoost đạt Accuracy cao nhất trong các baseline (79,8944%), còn Decision Tree đạt macro F1 cao nhất (57,5830%). TabM được giữ trong giao diện để đối chiếu thực nghiệm với TabNet và các baseline.
 
+## Thử nghiệm TabR trên UNSW-NB15
+
+```bash
+python -m pip install -r requirements.txt
+python -m src.train_tabr --pilot --max-epochs 2
+python -m src.train_tabr --max-epochs 20
+```
+
+Pilot dùng 20.000 dòng huấn luyện và 3.000 dòng validation để đo thời gian chạy. Lượt đầy đủ dùng cùng split 80/20 và 10 nhãn với các baseline UNSW hiện có. Biến thể CPU sử dụng FAISS IVF-flat với 24 mẫu tham chiếu, làm mới danh sách láng giềng của train theo từng giai đoạn rồi giữ cố định để giảm thời gian chạy. Các truy vấn validation và test chỉ tìm trên phần train bên trong. Checkpoint được chọn theo Accuracy trên validation, rồi đánh giá trên tập test 36.935 dòng.
+
+Kết quả lưu ở `results/unsw_nb15/tabr_metrics.csv`, `tabr_per_class.csv`, `tabr_meta.json` và `cm_tabr.png`. Checkpoint chứa trọng số và bộ tiền xử lý; để đánh giá lại cần dựng chỉ mục tham chiếu từ tập train. Split lịch sử vẫn có các dòng trùng đặc trưng giữa train và test.
+
+TabR đạt Accuracy **80,4142%** và macro F1 **61,1442%** trên toàn bộ test UNSW-NB15. Hai mốc baseline tương ứng là **79,8944%** của XGBoost và **57,5830%** của Decision Tree. Kiểm tra bổ sung giữ nguyên mô hình đã fit và chỉ tính trên 14.045 dòng test có bộ đặc trưng vắng mặt trong toàn bộ tập train. Trên phần này, Accuracy của TabR là **82,3994%** và của XGBoost là **81,1890%**.
+
 ## Giao diện desktop — PySide6
 
 Thư mục `giao_dien/` cung cấp giao diện xem kết quả đã lưu, gồm bảng so sánh các mô hình, biểu đồ chỉ số, confusion matrix, chỉ số từng lớp và hình/bảng EDA cho CIC-IDS2017 và UNSW-NB15. Mục **Dự đoán dữ liệu mới** cho chọn CSV/CSV.GZ và model đã lưu, kiểm tra đặc trưng, dự đoán và xuất toàn bộ kết quả CSV. Dùng `giao_dien/mau_du_doan_cic.csv` để thử nhanh với dataset CIC và model TabNet; file mẫu không có nhãn và không dùng để đánh giá accuracy.

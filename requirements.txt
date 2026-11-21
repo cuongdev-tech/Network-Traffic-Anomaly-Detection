@@ -13,3 +13,4 @@ torch
 pytorch-tabnet
 tabm==0.0.3
 rtdl-num-embeddings==0.0.12
+faiss-cpu==1.16.0
