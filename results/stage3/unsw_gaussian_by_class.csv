@@ -1,0 +1,11 @@
+class,test_samples,flagged,flag_rate
+Analysis,535,14,0.02616822
+Backdoor,466,3,0.00643777
+DoS,3271,13,0.00397432
+Exploits,8905,303,0.03402583
+Fuzzers,4849,45,0.00928026
+Generic,11774,8242,0.70001699
+Normal,4000,25,0.00625000
+Reconnaissance,2798,0,0.00000000
+Shellcode,302,0,0.00000000
+Worms,35,0,0.00000000

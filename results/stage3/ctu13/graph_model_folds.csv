@@ -1,0 +1,13 @@
+capture,method,fold,train_sources,test_sources,test_edges,test_positive_edges,true_positives
+CTU-11,logistic_regression,1,12,6,45,6,4
+CTU-11,random_forest,1,12,6,45,6,6
+CTU-11,logistic_regression,2,12,6,18,6,6
+CTU-11,random_forest,2,12,6,18,6,4
+CTU-11,logistic_regression,3,12,6,15,4,0
+CTU-11,random_forest,3,12,6,15,4,0
+CTU-12,logistic_regression,1,15,8,1096,1087,1087
+CTU-12,random_forest,1,15,8,1096,1087,1019
+CTU-12,logistic_regression,2,15,8,866,629,622
+CTU-12,random_forest,2,15,8,866,629,609
+CTU-12,logistic_regression,3,16,7,320,9,5
+CTU-12,random_forest,3,16,7,320,9,7

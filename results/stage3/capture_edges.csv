@@ -1,0 +1,5 @@
+capture,window,src,dst,connections,mean_gap_s,std_gap_s,gap_cv,periodic,topology_only,periodic_topology
+attack-injection-hao123.pcap,0,192.168.1.254,103.235.46.234,1,,,,False,unclassified,unclassified
+attack-injection-hao123.pcap,0,192.168.1.254,122.225.98.197,1,,,,False,unclassified,unclassified
+attack-injection-id1cn.pcap,0,192.168.1.254,42.120.158.95,4,0.31558537,0.43441120,1.37652513,False,unclassified,unclassified
+attack-injection-id1cn.pcap,0,192.168.1.254,42.96.141.35,5,1.38340753,2.14181674,1.54821821,False,unclassified,unclassified

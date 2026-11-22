@@ -1,0 +1,4 @@
+class,test_samples,flagged,flag_rate
+BENIGN,44996,456,0.01013423
+DDoS,25605,0,0.00000000
+PortScan,31761,3,0.00009446

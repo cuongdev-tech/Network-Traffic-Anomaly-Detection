@@ -1,0 +1,3 @@
+capture,window,method,component,topology,nodes,edges,hub,hub_coverage,core_fraction
+attack-injection-hao123.pcap,0,topology_only,1,unclassified,3,2,,1.00000000,0.00000000
+attack-injection-id1cn.pcap,0,topology_only,1,unclassified,3,2,,1.00000000,0.00000000

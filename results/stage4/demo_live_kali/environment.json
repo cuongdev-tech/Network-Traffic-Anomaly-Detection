@@ -1,0 +1,9 @@
+{
+  "distribution": "Kali GNU/Linux Rolling",
+  "kernel": "6.19.14+kali-amd64",
+  "python": "3.13.12",
+  "scapy": "2.7.1",
+  "scikit_learn": "1.8.0",
+  "scenario": "Three benign HTTP GET requests to a service on 127.0.0.1",
+  "expected_http_requests": 3
+}

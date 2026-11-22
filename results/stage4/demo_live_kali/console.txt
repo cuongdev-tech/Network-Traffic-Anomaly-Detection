@@ -1,0 +1,28 @@
+Listening on lo
+{
+  "mode": "live",
+  "source": "lo",
+  "seconds_elapsed": 8.138,
+  "flow_idle_seconds": 2.0,
+  "flow_active_seconds": 60,
+  "packets_observed": 72,
+  "packets_supported": 72,
+  "queue_drops": 0,
+  "flow_decisions": 3,
+  "flow_alerts": 0,
+  "graph_alerts": 0,
+  "graph_records_evicted": 0,
+  "flow_capacity_drops": 0,
+  "late_packets": 0,
+  "classification_batch_timing": {
+    "samples": 1,
+    "p50_ms": 34.32,
+    "p95_ms": 34.32
+  },
+  "last_packet_to_decision": {
+    "samples": 3,
+    "p50_ms": 2080.876,
+    "p95_ms": 2082.053
+  },
+  "last_packet_to_alert": null
+}

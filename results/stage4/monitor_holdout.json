@@ -1,0 +1,59 @@
+{
+  "source": "CTU-13 captures 11 and 12, TCP/UDP/ICMP, known labels only",
+  "features": [
+    "duration_s",
+    "packets",
+    "proto_tcp",
+    "proto_udp",
+    "proto_icmp"
+  ],
+  "gaussian_threshold": 2.792496658138549,
+  "sklearn_version": "1.8.0",
+  "validation": "Three stratified source-host folds. All reported predictions are held-source predictions.",
+  "sources": 40,
+  "flows": 20672,
+  "folds": [
+    {
+      "fold": 1,
+      "fit_sources": 26,
+      "test_sources": 14,
+      "test_flows": 2172,
+      "test_by_label": {
+        "normal": 2152,
+        "nsis_ay": 13,
+        "rbot": 7
+      }
+    },
+    {
+      "fold": 2,
+      "fit_sources": 27,
+      "test_sources": 13,
+      "test_flows": 8574,
+      "test_by_label": {
+        "rbot": 4006,
+        "normal": 3230,
+        "nsis_ay": 1338
+      }
+    },
+    {
+      "fold": 3,
+      "fit_sources": 27,
+      "test_sources": 13,
+      "test_flows": 9926,
+      "test_by_label": {
+        "normal": 4961,
+        "rbot": 4151,
+        "nsis_ay": 814
+      }
+    }
+  ],
+  "accuracy_multiclass": 0.859375,
+  "macro_f1_multiclass": 0.8501921315772615,
+  "gaussian_only_alerts": 2235,
+  "combined_alerts": {
+    "tn": 7637,
+    "fp": 2706,
+    "fn": 258,
+    "tp": 10071
+  }
+}

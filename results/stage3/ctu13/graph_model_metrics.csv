@@ -1,0 +1,5 @@
+capture,method,sources,positive_sources,scored_edges,tn,fp,fn,tp,precision,recall,f1
+CTU-11,logistic_regression,18,3,78,40,22,6,10,0.31250000,0.62500000,0.41666667
+CTU-11,random_forest,18,3,78,53,9,6,10,0.52631579,0.62500000,0.57142857
+CTU-12,logistic_regression,23,9,2282,544,13,11,1714,0.99247250,0.99362319,0.99304751
+CTU-12,random_forest,23,9,2282,453,104,90,1635,0.94019551,0.94782609,0.94399538

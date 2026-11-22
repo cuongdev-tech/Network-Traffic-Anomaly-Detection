@@ -105,6 +105,14 @@ Kết quả gồm `tabm_metrics.csv`, `tabm_per_class.csv`, `tabm_meta.json` và
 
 Trên 36.935 mẫu test UNSW-NB15, TabM đạt Accuracy 79,3827% và macro F1 50,5684%. XGBoost đạt Accuracy cao nhất trong các baseline (79,8944%), còn Decision Tree đạt macro F1 cao nhất (57,5830%). Bảng thử nghiệm TabM được giữ để đối chiếu với TabNet và các baseline.
 
+## Giai đoạn 3 theo đề bài 2.17
+
+Bản thực nghiệm bổ sung đánh giá phát hiện bất thường Gaussian trên tập test CIC-IDS2017 và UNSW-NB15, phân tích kết nối định kỳ và đồ thị tập trung/P2P trên ca tổng hợp, cùng kiểm chứng phát hiện cạnh botnet trên hai capture CTU-13 có nhãn. Kết quả, giới hạn và lệnh chạy nằm trong [tài liệu Giai đoạn 3](docs/GIAI_DOAN_3.md). Mục Giai đoạn 3 ở trên là mốc huấn luyện baseline ban đầu của dự án.
+
+## Giai đoạn 4 theo đề bài 2.17
+
+Bộ giám sát Scapy nhận PCAP hoặc bắt gói IPv4 trực tiếp. Giai đoạn này có mô hình flow riêng, phân tích đồ thị theo cửa sổ và log JSONL. Các lệnh chạy, số liệu PCAP và minh chứng loopback Windows và Kali nằm trong [tài liệu Giai đoạn 4](docs/GIAI_DOAN_4.md).
+
 ## TabR trên UNSW-NB15
 
 ```bash
