@@ -8,7 +8,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pandas as pd
-from PySide6.QtCore import Qt, QUrl, QThread, Signal
+from PySide6.QtCore import Qt, QUrl, QThread, Signal, QTimer
 from PySide6.QtGui import QDesktopServices, QFont, QFontDatabase, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QFrame, QGraphicsPixmapItem, QGraphicsScene,
@@ -219,6 +219,8 @@ class Dashboard(QMainWindow):
         self.build_features()
         self.build_prediction()
         self.realtime_page = RealtimeDashboard(self.root)
+        self._close_after_monitor = False
+        self.realtime_page.session_finished.connect(self._monitor_finished)
         self.pages.addWidget(self.realtime_page)
         outer.addWidget(sheet, 1)
         self.navigation.currentRowChanged.connect(self.change_page)
@@ -335,9 +337,18 @@ class Dashboard(QMainWindow):
             except OSError as error:
                 self.prediction_status.setText(f"Không lưu được kết quả: {error}")
 
+    def _monitor_finished(self):
+        if self._close_after_monitor:
+            self._close_after_monitor = False
+            QTimer.singleShot(0, self.close)
+
     def closeEvent(self, event):
         if self.prediction_worker is not None and self.prediction_worker.isRunning():
             self.prediction_status.setText("Đang dự đoán; hãy đợi hoàn tất trước khi đóng cửa sổ.")
+            event.ignore()
+        elif self.realtime_page.is_running():
+            self._close_after_monitor = True
+            self.realtime_page.stop_monitoring()
             event.ignore()
         else:
             super().closeEvent(event)
@@ -488,7 +499,7 @@ class Dashboard(QMainWindow):
         left_box.addWidget(self.features_tab, 1)
         panes.addWidget(left_panel)
 
-        # Cột phải: Phân tích hành vi chi tiết theo từng lớp
+        # Cột phải: Phân tích hành vi chi tiết theo từng lớp (dạng báo cáo ATTT)
         right_panel = QWidget()
         right_box = QVBoxLayout(right_panel)
         right_box.setContentsMargins(8, 0, 0, 0)
