@@ -21,6 +21,7 @@ class Observation:
     dport: int
     protocol: str
     meta: PacketMeta | None = None
+    app_payload: bytes | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass
@@ -63,15 +64,10 @@ def packet_observation(packet):
     else:
         return None
 
-    return Observation(
-        timestamp,
-        ip.src,
-        ip.dst,
-        sport,
-        dport,
-        protocol,
-        read_metadata(ip),
-    )
+    meta = read_metadata(ip)
+    from src.live_flow_stats import capture_app_prefix
+    return Observation(timestamp, ip.src, ip.dst, sport, dport, protocol,
+                       meta, capture_app_prefix(ip, meta))
 
 
 class FlowTable:

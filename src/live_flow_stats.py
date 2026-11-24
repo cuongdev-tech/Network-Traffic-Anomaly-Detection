@@ -214,6 +214,7 @@ class FlowStats:
 
         self.syn = self.synack = self.final_ack = None
         self.handshake_ambiguous = False
+        self.unsw_local = LocalUNSW()
 
     def _handshake(self, timestamp, meta, forward, first):
 
@@ -316,6 +317,7 @@ class FlowStats:
             direction.bulk.add(timestamp, meta.payload_bytes)
 
         self._handshake(timestamp, meta, forward, is_first)
+        self.unsw_local.add(observation, forward)
 
     def snapshot(self):
 
@@ -344,7 +346,7 @@ class FlowStats:
             else self.last_timestamp - self.active_start
         )
 
-        return {
+        return {"unsw_local": self.unsw_local.snapshot(self), 
             "schema_version": 2,
             "forward": self.forward.snapshot(),
             "backward": self.backward.snapshot(),
@@ -361,3 +363,551 @@ class FlowStats:
             "missing_metadata": self.missing_metadata,
             "out_of_order": self.out_of_order,
         }
+
+
+# UNSW V3 - Local feature candidates.
+# Not verified as equivalent to Argus/Bro.
+
+APP_LIMIT = 4096
+
+
+def capture_app_prefix(ip, meta):
+
+    if meta is None:
+        return None
+
+    if meta.tcp_seq is None:
+        return b""
+
+    start = (
+        meta.ip_header_bytes
+        + meta.transport_header_bytes
+    )
+
+    return bytes(ip)[
+        start:min(meta.ip_bytes, start + APP_LIMIT)
+    ]
+
+
+class LocalTCP:
+
+    def __init__(self):
+
+        self.base = None
+        self.high = 0
+        self.overlaps = 0
+        self.gap = False
+
+        self.prefix = bytearray()
+        self.app_incomplete = False
+
+    def add(self, meta, payload):
+
+        syn = int(bool(meta.tcp_flags & 2))
+        fin = int(bool(meta.tcp_flags & 1))
+
+        seq = meta.tcp_seq
+
+        if self.base is None:
+
+            if seq is None or not syn:
+
+                self.gap = True
+                return
+
+            self.base = seq
+
+        offset = (seq - self.base) % (2**32)
+
+        if offset >= 2**31:
+
+            self.gap = True
+            return
+
+        length = syn + meta.payload_bytes + fin
+
+        if length:
+
+            if offset > self.high:
+                self.gap = True
+
+            if offset < self.high:
+                self.overlaps += 1
+
+            self.high = max(
+                self.high,
+                offset + length,
+            )
+
+        if not meta.payload_bytes:
+            return
+
+        pos = offset + syn - 1
+        end = pos + meta.payload_bytes
+
+        if (
+            pos < 0
+            or pos > len(self.prefix)
+            or end > APP_LIMIT
+        ):
+
+            self.app_incomplete = True
+            return
+
+        if (
+            payload is None
+            or len(payload) != meta.payload_bytes
+        ):
+
+            self.app_incomplete = True
+            return
+
+        overlap = min(
+            len(payload),
+            len(self.prefix) - pos,
+        )
+
+        if (
+            self.prefix[pos:pos + overlap]
+            != payload[:overlap]
+        ):
+
+            self.app_incomplete = True
+            return
+
+        self.prefix.extend(
+            payload[overlap:]
+        )
+
+    def data(self):
+
+        if (
+            self.base is None
+            or self.gap
+            or self.app_incomplete
+        ):
+
+            return None
+
+        return bytes(self.prefix)
+
+
+def http_message(data):
+
+    if (
+        data is None
+        or b"\r\n\r\n" not in data
+    ):
+
+        return None
+
+    header, body = data.split(
+        b"\r\n\r\n", 1
+    )
+
+    lines = header.split(b"\r\n")
+
+    fields = {}
+
+    for line in lines[1:]:
+
+        name, sep, value = line.partition(b":")
+
+        if not sep or name.lower() in fields:
+            return None
+
+        fields[name.lower()] = (
+            value.strip().lower()
+        )
+
+    return (
+        lines[0].split(),
+        fields,
+        body,
+    )
+
+
+def body_length(fields, body, closed=False):
+
+    if (
+        fields.get(
+            b"transfer-encoding", b"identity"
+        ) != b"identity"
+
+        or fields.get(
+            b"content-encoding", b"identity"
+        ) != b"identity"
+    ):
+
+        return None
+
+    n = fields.get(b"content-length")
+
+    if n is None:
+
+        return len(body) if closed else None
+
+    if (
+        not n.isdigit()
+        or len(n) > 12
+        or int(n) != len(body)
+    ):
+
+        return None
+
+    return int(n)
+
+
+class LocalUNSW:
+
+    def __init__(self):
+
+        self.protocol = None
+        self.observed = False
+
+        self.first_bytes = [None, None]
+
+        self.tcp = [
+            LocalTCP(),
+            LocalTCP(),
+        ]
+
+    def add(self, obs, forward):
+
+        meta = obs.meta
+
+        payload = getattr(
+            obs, "app_payload", None
+        )
+
+        if meta is None or payload is None:
+            return
+
+        self.observed = True
+        self.protocol = obs.protocol
+
+        i = 0 if forward else 1
+
+        if self.first_bytes[i] is None:
+
+            self.first_bytes[i] = (
+                meta.ip_bytes
+            )
+
+        if obs.protocol == "tcp":
+
+            self.tcp[i].add(
+                meta,
+                payload,
+            )
+
+    def snapshot(self, flow):
+
+        if not self.observed:
+            return {}
+
+        values = {}
+
+        f = flow.forward
+        b = flow.backward
+
+        # ==================================
+        # LOAD, JITTER AND RETRANSMISSION
+        # ==================================
+
+        for i, (prefix, d) in enumerate(
+            (("s", f), ("d", b))
+        ):
+
+            if (
+                d.packets
+                and self.first_bytes[i] is None
+            ):
+
+                continue
+
+            elapsed = (
+                d.last_timestamp
+                - d.first_timestamp
+                if d.packets > 1
+                else 0
+            )
+
+            # Local bit rate excluding first packet.
+
+            values[prefix + "load"] = (
+
+                8 * (
+                    d.ip_length.total
+                    - self.first_bytes[i]
+                ) / elapsed
+
+                if elapsed > 0
+                else 0.0
+            )
+
+            # Local jitter estimate in milliseconds.
+
+            values[prefix + "jit"] = (
+
+                d.iat.snapshot()["std"]
+                or 0.0
+
+            ) * 1000
+
+            t = self.tcp[i]
+
+            # Observed overlapping TCP segments.
+            # Not an exact Argus packet-loss counter.
+
+            if (
+                self.protocol == "tcp"
+                and t.base is not None
+                and not t.gap
+            ):
+
+                values[prefix + "loss"] = (
+                    t.overlaps
+                )
+
+        # ==================================
+        # CONNECTION STATE
+        # ==================================
+
+        if self.protocol == "udp":
+
+            values["state"] = (
+                "CON" if b.packets else "INT"
+            )
+
+            # UDP loss and application features
+            # are not inferred without evidence.
+
+            return values
+
+        if self.protocol != "tcp":
+            return values
+
+        closed = bool(
+            f.flags["FIN"]
+            and b.flags["FIN"]
+        )
+
+        if (
+            f.flags["RST"]
+            or b.flags["RST"]
+        ):
+
+            values["state"] = "RST"
+
+        elif closed:
+
+            values["state"] = "FIN"
+
+        elif (
+            flow.final_ack is not None
+            and not flow.handshake_ambiguous
+        ):
+
+            values["state"] = "CON"
+
+        elif (
+            f.first_flags is not None
+            and f.first_flags & 2
+            and not f.first_flags & 16
+        ):
+
+            values["state"] = "REQ"
+
+        request, response = (
+            t.data() for t in self.tcp
+        )
+
+        # No observed application data.
+
+        if not f.data_packets and not b.data_packets:
+
+            values.update(
+                service="-",
+                trans_depth=0,
+                response_body_len=0,
+                ct_flw_http_mthd=0,
+                is_ftp_login=0,
+                ct_ftp_cmd=0,
+            )
+
+            return values
+
+        # ==================================
+        # HTTP APPLICATION FEATURES
+        # ==================================
+
+        req = http_message(request)
+        res = http_message(response)
+
+        methods = {
+            b"GET",
+            b"POST",
+            b"HEAD",
+            b"PUT",
+            b"DELETE",
+            b"OPTIONS",
+            b"PATCH",
+            b"CONNECT",
+            b"TRACE",
+        }
+
+        if (
+            req
+            and len(req[0]) == 3
+            and req[0][0] in methods
+            and req[0][2] in {
+                b"HTTP/1.0",
+                b"HTTP/1.1",
+            }
+        ):
+
+            values.update(
+                service="http",
+                is_ftp_login=0,
+                ct_ftp_cmd=0,
+            )
+
+            req_size = body_length(
+                req[1],
+                req[2],
+                closed=not req[2],
+            )
+
+            # Only complete, single HTTP/1.x
+            # transactions are supported.
+
+            if (
+                req_size is not None
+                and res
+                and len(res[0]) >= 2
+                and res[0][0] in {
+                    b"HTTP/1.0",
+                    b"HTTP/1.1",
+                }
+                and res[0][1].isdigit()
+                and len(res[0][1]) == 3
+            ):
+
+                code = int(res[0][1])
+
+                if (
+                    req[0][0] == b"HEAD"
+                    or code in (204, 304)
+                ):
+
+                    size = (
+                        0 if not res[2]
+                        else None
+                    )
+
+                elif (
+                    200 <= code <= 599
+                    and req[0][0] != b"CONNECT"
+                ):
+
+                    size = body_length(
+                        res[1],
+                        res[2],
+                        closed=bool(
+                            b.flags["FIN"]
+                        ),
+                    )
+
+                else:
+
+                    size = None
+
+                if size is not None:
+
+                    values.update(
+                        trans_depth=1,
+                        response_body_len=size,
+                        ct_flw_http_mthd=1,
+                    )
+
+            return values
+
+        # ==================================
+        # FTP APPLICATION FEATURES
+        # ==================================
+
+        if (
+            request is not None
+            and response is not None
+        ):
+
+            commands = [
+
+                line.split(None, 1)[0].upper()
+
+                for line in request.split(b"\r\n")
+
+                if line.strip()
+            ]
+
+            allowed = {
+
+                b"USER", b"PASS",
+                b"QUIT", b"SYST",
+                b"PWD", b"CWD",
+                b"TYPE", b"LIST",
+                b"PASV", b"EPSV",
+                b"PORT", b"EPRT",
+                b"RETR", b"STOR",
+                b"NOOP", b"FEAT",
+                b"SIZE", b"MDTM",
+                b"OPTS", b"DELE",
+                b"MKD", b"RMD",
+            }
+
+            if (
+
+                response.startswith(b"220 ")
+
+                and b"USER" in commands
+
+                and b"PASS" in commands
+
+                and set(commands) <= allowed
+
+            ):
+
+                values.update(
+                    service="ftp",
+                    trans_depth=0,
+                    response_body_len=0,
+                    ct_flw_http_mthd=0,
+                )
+
+                if (
+                    closed
+                    and request.endswith(b"\r\n")
+                    and response.endswith(b"\r\n")
+                ):
+
+                    values.update(
+
+                        ct_ftp_cmd=len(commands),
+
+                        is_ftp_login=int(
+
+                            any(
+
+                                line.startswith(b"230 ")
+
+                                for line in response.split(
+                                    b"\r\n"
+                                )
+
+                            )
+
+                        ),
+                    )
+
+        return values

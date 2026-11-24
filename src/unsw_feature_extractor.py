@@ -137,6 +137,38 @@ def extract_unsw_features(event, reference=None):
             UNSW_FEATURES, {}, str(exc)
         )
 
+    local = stats.get("unsw_local", {})
+
+    allowed = {
+        "service", "state",
+        "sload", "dload",
+        "sloss", "dloss",
+        "sjit", "djit",
+        "trans_depth",
+        "response_body_len",
+        "is_ftp_login",
+        "ct_ftp_cmd",
+        "ct_flw_http_mthd",
+    }
+
+    for name, value in local.items():
+
+        if name in allowed:
+
+            if name in {"service", "state"}:
+
+                if isinstance(value, str) and value:
+                    values[name] = value
+
+            else:
+
+                try:
+
+                    values[name] = number(value)
+
+                except (TypeError, ValueError, OverflowError):
+
+                    pass
     result = audit_result(UNSW_FEATURES, values)
 
     if stats.get("schema_version") == 2:
@@ -169,6 +201,15 @@ def extract_unsw_features(event, reference=None):
         for name in result["missing_features"]
     }
 
+    if local:
+
+        result["candidate_definition"] = (
+            "local_v3_unverified_not_argus_bro"
+        )
+
+        result["local_estimates"] = sorted(
+            set(local) & allowed & values.keys()
+        )
     return attach_reference(
         result,
         event,
