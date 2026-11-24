@@ -321,6 +321,24 @@ def provide_features(event, dataset):
     ).match(event)
 
 
+
+
+def candidate_row(dataset, audit):
+    """Schema-checked local estimates for experimental inference only."""
+
+    schema, _, validator, *_ = SPECS[dataset]
+
+    if (
+        audit.get("status") != "UNVERIFIED"
+        or audit.get("error")
+        or audit.get("missing_features") != []
+        or audit.get("available_count") != len(schema)
+    ):
+        return None
+
+    return validator(audit["candidate_features"])
+
+
 def main():
 
     parser = argparse.ArgumentParser(
