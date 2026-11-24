@@ -430,9 +430,7 @@ class UnifiedDetectionEngine:
                             prediction["label"]
                         )
 
-                        prediction["label"] = (
-                            "[DEMO] " + prediction["label"]
-                        )
+                        
 
                         prediction["feature_quality"] = DEMO
 
