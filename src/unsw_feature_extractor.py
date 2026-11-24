@@ -145,6 +145,30 @@ def extract_unsw_features(event, reference=None):
             "local_v2_ip_bytes_handshake_history_unverified"
         )
 
+    sources = {
+        "service": "Application protocol identification",
+        "state": "Argus connection state",
+        "sloss": "Argus loss accounting",
+        "dloss": "Argus loss accounting",
+        "sload": "Argus byte and load definition",
+        "dload": "Argus byte and load definition",
+        "sjit": "Argus jitter definition",
+        "djit": "Argus jitter definition",
+        "trans_depth": "HTTP transaction parsing",
+        "response_body_len": "HTTP response parsing",
+        "is_ftp_login": "FTP session parsing",
+        "ct_ftp_cmd": "FTP command history",
+        "ct_flw_http_mthd": "HTTP method history",
+    }
+
+    result["missing_sources"] = {
+        name: sources.get(
+            name,
+            "Missing packet or timing evidence",
+        )
+        for name in result["missing_features"]
+    }
+
     return attach_reference(
         result,
         event,

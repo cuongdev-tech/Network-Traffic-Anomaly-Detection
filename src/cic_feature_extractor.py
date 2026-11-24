@@ -1,5 +1,5 @@
 """Audit live CIC features; do not infer with unverified semantics."""
-from math import isfinite
+from math import isfinite, isclose
 
 CIC_FEATURES = tuple("""
 Destination Port
@@ -425,6 +425,53 @@ def add_extended_cic(values, event, stats, f, b, n):
             ) * 1_000_000
 
 
+def compare_reference(candidate, reference):
+
+    matched = []
+    different = {}
+    missing = []
+
+    for name, expected in reference.items():
+
+        if name not in candidate:
+
+            missing.append(name)
+            continue
+
+        actual = candidate[name]
+
+        if isinstance(expected, str):
+
+            equal = actual == expected
+
+        else:
+
+            equal = isclose(
+                number(actual),
+                number(expected),
+                rel_tol=1e-5,
+                abs_tol=1e-6,
+            )
+
+        if equal:
+
+            matched.append(name)
+
+        else:
+
+            different[name] = {
+                "candidate": actual,
+                "reference": expected,
+            }
+
+    return {
+        "matched": matched,
+        "different": different,
+        "missing": missing,
+        "all_match": not different and not missing,
+    }
+
+
 def attach_reference(result, event, dataset, reference, validator):
     """Accept only trusted, independently parity-tested reference features."""
 
@@ -466,4 +513,5 @@ def attach_reference(result, event, dataset, reference, validator):
         "status": "REFERENCE_SCHEMA_OK",
         "model_features": features,
         "reference_extractor": extractor,
+        "reference_comparison": compare_reference(result["candidate_features"], features),
     }
