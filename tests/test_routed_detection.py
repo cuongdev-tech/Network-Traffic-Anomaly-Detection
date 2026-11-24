@@ -6,33 +6,24 @@ import pandas as pd
 
 from src.cic_feature_extractor import CIC_FEATURES
 from src.unsw_feature_extractor import UNSW_FEATURES
-from src.dual_inference import DualInferenceEngine, MODELS
+from src.dual_inference import DualInferenceEngine
 from src.unified_detection import UnifiedDetectionEngine, aggregate
+from src.host_window import HostWindow
 from test_feature_extractors import event_fixture
 
 
-def branch(labels):
-    return {
-        "status": "OK",
-        "models": [
-            {
-                "model": model,
-                "status": "OK",
-                "predictions": [{"label": label}],
-            }
-            for model, label in zip(MODELS, labels)
-        ],
-    }
-
-
 def fixture():
+
     event = event_fixture()
     event["flow_id"] = "flow-001"
+
     return event
 
 
 def reference(event, dataset):
+
     # Synthetic rows for interface tests only.
+
     schema = (
         CIC_FEATURES
         if dataset == "cic"
@@ -42,6 +33,7 @@ def reference(event, dataset):
     row = dict.fromkeys(schema, 1)
 
     if dataset == "unsw":
+
         row.update(
             proto="tcp",
             service="http",
@@ -51,17 +43,39 @@ def reference(event, dataset):
     return {
         "flow_id": event["flow_id"],
         "dataset": dataset,
-        "extractor": "test-fixture",
+        "extractor": "fixture-only",
         "features": row,
     }
 
 
-class DualBranchTests(unittest.TestCase):
+def branch(label):
 
-    def test_missing_provider_blocks_all_models(self):
+    return {
+        "status": "OK",
+        "models": [
+            {
+                "model": "TabR",
+                "status": "OK",
+                "predictions": [
+                    {
+                        "label": label,
+                        "confidence": 0.9,
+                    }
+                ],
+            }
+        ],
+    }
+
+
+class TabRTests(unittest.TestCase):
+
+    def test_missing_provider(self):
 
         with TemporaryDirectory() as root:
-            engine = UnifiedDetectionEngine(root=root)
+
+            engine = UnifiedDetectionEngine(
+                root=root
+            )
 
             with patch.object(
                 engine.engine, "infer_model"
@@ -72,11 +86,7 @@ class DualBranchTests(unittest.TestCase):
             infer.assert_not_called()
 
         self.assertEqual(
-            result["mode"], "dual_independent"
-        )
-
-        self.assertEqual(
-            result["route"], "both"
+            result["mode"], "tabr_dual"
         )
 
         self.assertEqual(
@@ -89,12 +99,11 @@ class DualBranchTests(unittest.TestCase):
             0,
         )
 
+    def test_same_flow_exactly_two_tabr_calls(self):
 
-    def test_same_flow_runs_all_twelve_models(self):
+        provider = Mock(side_effect=reference)
 
         with TemporaryDirectory() as root:
-
-            provider = Mock(side_effect=reference)
 
             engine = UnifiedDetectionEngine(
                 root=root,
@@ -103,24 +112,18 @@ class DualBranchTests(unittest.TestCase):
 
             def predict(dataset, model, frame):
 
-                expected = (
-                    CIC_FEATURES
-                    if dataset == "cic"
-                    else UNSW_FEATURES
+                self.assertEqual(
+                    model, "TabR"
                 )
 
                 self.assertEqual(
                     tuple(frame.columns),
-                    expected,
+                    CIC_FEATURES
+                    if dataset == "cic"
+                    else UNSW_FEATURES,
                 )
 
-                return {
-                    "model": model,
-                    "status": "OK",
-                    "predictions": [
-                        {"label": "Normal"}
-                    ],
-                }
+                return branch("Normal")["models"][0]
 
             with patch.object(
                 engine.engine,
@@ -131,7 +134,7 @@ class DualBranchTests(unittest.TestCase):
                 result = engine.detect(fixture())
 
             self.assertEqual(
-                infer.call_count, 12
+                infer.call_count, 2
             )
 
             self.assertEqual(
@@ -140,18 +143,9 @@ class DualBranchTests(unittest.TestCase):
                     for c in infer.call_args_list
                 },
                 {
-                    (ds, m)
-                    for ds in ("cic", "unsw")
-                    for m in MODELS
+                    ("cic", "TabR"),
+                    ("unsw", "TabR"),
                 },
-            )
-
-            self.assertEqual(
-                [
-                    c.args[1]
-                    for c in provider.call_args_list
-                ],
-                ["cic", "unsw"],
             )
 
             self.assertEqual(
@@ -163,70 +157,42 @@ class DualBranchTests(unittest.TestCase):
             )
 
         self.assertEqual(
-            result["decision"]["completed_models"],
-            12,
-        )
-
-        self.assertEqual(
             result["decision"]["status"],
             "NORMAL_CANDIDATE",
         )
 
-
-    def test_invalid_one_branch_does_not_block_other(self):
-
-        def provider(event, dataset):
-
-            if dataset == "unsw":
-                raise ValueError("missing reference")
-
-            return reference(event, dataset)
-
-        with TemporaryDirectory() as root:
-
-            engine = UnifiedDetectionEngine(
-                root=root,
-                provider=provider,
-            )
-
-            with patch.object(
-                engine.engine,
-                "infer_branch",
-                side_effect=lambda ds, frame:
-                    branch(["Normal"] * 6)
-                    if frame is not None
-                    else {
-                        "status": "FEATURES_UNAVAILABLE",
-                        "models": [],
-                    },
-            ):
-
-                result = engine.detect(fixture())
-
-        self.assertEqual(
-            result["feature_audit"]["unsw"]["status"],
-            "PROVIDER_ERROR",
-        )
-
         self.assertEqual(
             result["decision"]["completed_models"],
-            6,
+            2,
+        )
+
+    def test_partial_attack(self):
+
+        result = aggregate({
+            "cic": branch("PortScan"),
+            "unsw": {
+                "status": "FEATURES_UNAVAILABLE"
+            },
+        })
+
+        self.assertEqual(
+            result["status"], "INCOMPLETE"
+        )
+
+        self.assertTrue(
+            result["attack_candidate"]
         )
 
         self.assertEqual(
-            result["decision"]["status"],
-            "INCOMPLETE",
+            result["completed_models"], 1
         )
 
+    def test_conflict_not_fused(self):
 
-    def test_conflicting_labels_remain_separate(self):
-
-        dual = {
-            "cic": branch(["DDoS"] * 6),
-            "unsw": branch(["DoS"] * 6),
-        }
-
-        result = aggregate(dual)
+        result = aggregate({
+            "cic": branch("DDoS"),
+            "unsw": branch("DoS"),
+        })
 
         self.assertEqual(
             result["status"], "CONFLICT"
@@ -241,26 +207,25 @@ class DualBranchTests(unittest.TestCase):
             result["attack_candidate"]
         )
 
+    def test_partial_normal_is_not_clear(self):
 
-    def test_disagreement_inside_branch(self):
-
-        dual = {
-            "cic": branch(
-                ["Normal"] * 3 + ["DDoS"] * 3
-            ),
-            "unsw": branch(["Normal"] * 6),
-        }
+        result = aggregate({
+            "cic": branch("Normal")
+        })
 
         self.assertEqual(
-            aggregate(dual)["status"],
-            "DISAGREEMENT",
+            result["status"], "INCOMPLETE"
         )
 
+        self.assertFalse(
+            result["attack_candidate"]
+        )
 
     def test_checkpoint_version_guard(self):
 
         engine = DualInferenceEngine(
-            strict_versions=True
+            models=("TabR",),
+            strict_versions=True,
         )
 
         with patch.object(
@@ -273,7 +238,7 @@ class DualBranchTests(unittest.TestCase):
 
             result = engine.infer_model(
                 "cic",
-                MODELS[0],
+                "TabR",
                 pd.DataFrame({"f": [1]}),
             )
 
@@ -282,8 +247,142 @@ class DualBranchTests(unittest.TestCase):
             "VERSION_MISMATCH",
         )
 
-        self.assertNotIn(
-            "predictions", result
+    def test_monitor_tabr_uses_gaussian_without_rf(self):
+
+        from io import StringIO
+        import json
+        import numpy as np
+
+        try:
+
+            from src.stage4_monitor import Monitor
+
+            from src.monitor_flows import (
+                FlowTable, Observation
+            )
+
+        except ModuleNotFoundError as error:
+
+            if error.name and error.name.startswith("scapy"):
+
+                self.skipTest(
+                    "Scapy unavailable"
+                )
+
+            raise
+
+        gaussian = Mock()
+
+        gaussian.score_samples.return_value = (
+            np.array([0.5])
+        )
+
+        detector = Mock()
+
+        detector.detect.return_value = {
+            "decision": {
+                "attack_candidate": True,
+                "completed_models": 2,
+            }
+        }
+
+        bundle = {
+            "gaussian": gaussian,
+            "gaussian_threshold": 1.0,
+        }
+
+        log = StringIO()
+
+        monitor = Monitor(
+            bundle,
+            log,
+            FlowTable(),
+            live=False,
+            detector=detector,
+        )
+
+        with patch(
+            "src.stage4_monitor.classify"
+        ) as legacy:
+
+            monitor.accept(
+                Observation(
+                    10,
+                    "192.0.2.1",
+                    "192.0.2.2",
+                    40000,
+                    80,
+                    "tcp",
+                )
+            )
+
+            monitor.finish()
+
+            legacy.assert_not_called()
+
+        event = json.loads(
+            log.getvalue().splitlines()[0]
+        )
+
+        self.assertEqual(
+            event["event"], "flow_alert"
+        )
+
+        self.assertEqual(
+            event["classification_mode"],
+            "tabr_dual",
+        )
+
+        self.assertFalse(
+            event["ctu_alert"]
+        )
+
+        self.assertEqual(
+            event["host_window"]["flows"], 1
+        )
+
+        self.assertEqual(
+            monitor.summary()["dual_completed"],
+            1,
+        )
+
+    def test_host_window_expiry_and_cap(self):
+
+        w = HostWindow(
+            seconds=60,
+            limit=2,
+        )
+
+        self.assertEqual(
+            w.add(0, "a", "b", 80, 3)["flows"],
+            1,
+        )
+
+        self.assertEqual(
+            w.add(1, "a", "c", 443, 4)[
+                "unique_dst_ports"
+            ],
+            2,
+        )
+
+        v = w.add(2, "a", "d", 443, 5)
+
+        self.assertEqual(
+            v["packets"], 9
+        )
+
+        self.assertTrue(
+            v["capacity_truncated"]
+        )
+
+        v = w.add(62, "a", "b", 80, 1)
+
+        self.assertEqual(
+            v["flows"], 1
+        )
+
+        self.assertFalse(
+            v["capacity_truncated"]
         )
 
 

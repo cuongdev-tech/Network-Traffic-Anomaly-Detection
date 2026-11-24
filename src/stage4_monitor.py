@@ -22,7 +22,8 @@ from scapy.utils import PcapReader
 
 from src.botnet_graph import analyze_flows
 from src.monitor_flows import FlowTable, packet_observation
-from src.monitor_model import alert_decision, classify, load_monitor
+from src.monitor_model import alert_decision, classify, load_monitor, features
+from src.host_window import HostWindow
 from src.unified_detection import UnifiedDetectionEngine, load_provider
 
 
@@ -47,8 +48,9 @@ class Monitor:
     def __init__(self, bundle, log, table, *, live, detector=None):
         self.bundle, self.log, self.table, self.live = bundle, log, table, live
         self.detector = detector
+        self.host_window = HostWindow()
         self.counts = {"flow_decisions": 0, "flow_alerts": 0, "graph_alerts": 0, "graph_records_evicted": 0}
-        self.counts.update(ctu_alerts=0, dual_alerts=0, dual_completed=0)
+        self.counts.update(ctu_alerts=0, gaussian_alerts=0, dual_alerts=0, dual_completed=0)
         self.classification_ms = deque(maxlen=STATS_SAMPLES)
         self.live_decision_ms = deque(maxlen=STATS_SAMPLES)
         self.live_alert_ms = deque(maxlen=STATS_SAMPLES)
@@ -80,21 +82,34 @@ class Monitor:
             for flow, _ in completed
         ])
         started = perf_counter()
-        predictions = classify(self.bundle, flows)
+        if self.detector is None:
+            predictions = classify(self.bundle, flows)  # historical CTU-only CLI
+        else:
+            # Gaussian uses the five-feature CTU schema.
+            scores = self.bundle["gaussian"].score_samples(features(flows))
+            predictions = pd.DataFrame({"label": [None] * len(flows),
+                "confidence": [None] * len(flows), "gaussian_score": scores,
+                "gaussian_flag": scores > self.bundle["gaussian_threshold"]})
         self.classification_ms.append(1000 * (perf_counter() - started))
         for (flow, reason), result in zip(completed, predictions.itertuples(index=False)):
             first = flow.first
-            ctu_alert = bool(alert_decision(result.label, result.gaussian_flag))
+            gaussian_alert = bool(result.gaussian_flag)
+            ctu_alert = (bool(alert_decision(result.label, gaussian_alert))
+                         if self.detector is None else False)
             event = {
                 "flow_id": uuid4().hex,
-                "event": "flow_alert" if ctu_alert else "flow_decision",
+                "event": "flow_alert" if ctu_alert or gaussian_alert else "flow_decision",
                 "flow_start_utc": utc(first.timestamp), "flow_end_utc": utc(flow.last),
                 "flow_start_epoch": first.timestamp, "flow_end_epoch": flow.last,
                 "src": first.src, "dst": first.dst, "sport": first.sport, "dport": first.dport,
                 "protocol": first.protocol, "packets": flow.packets, "duration_s": round(flow.duration_s, 6),
-                "close_reason": reason, "label": result.label, "confidence": round(result.confidence, 6),
+                "close_reason": reason, "label": result.label,
+                "confidence": round(result.confidence, 6) if result.confidence is not None else None,
+                "classification_mode": "tabr_dual" if self.detector is not None else "ctu_legacy",
                 "gaussian_flag": bool(result.gaussian_flag), "gaussian_score": round(result.gaussian_score, 6),
                 "ctu_alert": ctu_alert, "capture_features": flow.stats.snapshot(),
+                "host_window": self.host_window.add(self.table.now, first.src, first.dst,
+                                                     first.dport, flow.packets),
             }
             dual_alert = False
             if self.detector is not None:
@@ -102,10 +117,10 @@ class Monitor:
                     dual = self.detector.detect(event)
                     event["dual_inference"] = dual
                     dual_alert = bool(dual["decision"]["attack_candidate"])
-                    self.counts["dual_completed"] += int(dual["decision"]["status"] not in {"UNAVAILABLE", "INCOMPLETE"})
+                    self.counts["dual_completed"] += int(dual["decision"]["completed_models"] == 2)
                 except Exception as exc:
                     event["dual_inference"] = {"error": f"{type(exc).__name__}: {exc}"}
-            alert = ctu_alert or dual_alert
+            alert = gaussian_alert or ctu_alert or dual_alert
             now = time()
             delay = None
             if self.live:
@@ -119,6 +134,7 @@ class Monitor:
             self.counts["flow_decisions"] += 1
             self.counts["flow_alerts"] += int(alert)
             self.counts["ctu_alerts"] += int(ctu_alert)
+            self.counts["gaussian_alerts"] += int(gaussian_alert)
             self.counts["dual_alerts"] += int(dual_alert)
             self.counts["graph_records_evicted"] += int(len(self.history) == self.history.maxlen)
             self.history.append((first.src, first.dst, first.timestamp))
@@ -310,7 +326,9 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--capture-backend", choices=("scapy", "dumpcap"), default="scapy")
     parser.add_argument("--stop-file", type=Path, help="Stop safely when this session marker exists")
-    parser.add_argument("--dual", action="store_true", help="Enable both independent CIC/UNSW branches")
+    parser.add_argument("--tabr", "--dual", dest="dual", action="store_true",
+                        help="Enable Gaussian + both TabR checkpoints; --dual is a legacy alias")
+    parser.add_argument("--tabr-cache", type=int, choices=(1, 2), default=2)
     parser.add_argument("--feature-provider", help="Trusted validated adapter module:function")
     args = parser.parse_args()
     if not isfinite(args.seconds) or args.seconds < 0:
@@ -328,7 +346,10 @@ def main():
     try:
         table = FlowTable(args.idle_seconds, args.active_seconds, args.max_flows)
         bundle = load_monitor()
-        detector = (UnifiedDetectionEngine(provider=load_provider(args.feature_provider)) if args.dual else None)
+        if args.dual:
+            bundle.pop("classifier", None)  # Gaussian only in TabR mode
+        detector = (UnifiedDetectionEngine(provider=load_provider(args.feature_provider),
+                    max_cached_models=args.tabr_cache) if args.dual else None)
         args.output.mkdir(parents=True, exist_ok=True)
         live = args.interface is not None
         start = perf_counter()
@@ -343,6 +364,7 @@ def main():
         result = {
             "mode": "live" if live else "pcap",
             "dual_enabled": args.dual,
+            "classification_mode": "tabr_dual" if args.dual else "ctu_legacy",
             "capture_backend": args.capture_backend if live else "pcap",
             "source": args.interface if live else args.pcap.name,
             "seconds_elapsed": round(perf_counter() - start, 3),

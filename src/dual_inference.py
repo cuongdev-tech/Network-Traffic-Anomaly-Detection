@@ -199,13 +199,15 @@ def main():
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--resident", action="store_true", help="Keep all requested bundles loaded; check RAM first")
-    parser.add_argument("--skip-tabr", action="store_true", help="Partial preflight only")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--skip-tabr", action="store_true", help="Partial preflight only")
+    selection.add_argument("--only-tabr", action="store_true", help="Test just the two TabR checkpoints")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.limit < 1 or args.threads < 1:
         parser.error("--limit and --threads must be positive")
-    selected = MODELS[:-1] if args.skip_tabr else MODELS
-    engine = DualInferenceEngine(threads=args.threads, models=selected)
+    selected = ("TabR",) if args.only_tabr else MODELS[:-1] if args.skip_tabr else MODELS
+    engine = DualInferenceEngine(threads=args.threads, models=selected, strict_versions=args.only_tabr)
     results = []
     datasets = tuple(BRANCHES) if args.dataset == "both" else (args.dataset,)
     for dataset in datasets:

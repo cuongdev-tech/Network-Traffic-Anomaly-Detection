@@ -16,9 +16,10 @@ from PySide6.QtWidgets import (
 
 from src.cic_feature_extractor import extract_cic_features
 from src.unsw_feature_extractor import extract_unsw_features
+from src.unified_detection import aggregate
 
 ROOT = Path(__file__).resolve().parents[1]
-MODELS = ("LogisticRegression", "DecisionTree", "KNN", "Random Forest", "XGBoost", "TabR")
+MODELS = ("TabR",)
 STATUS = {
     "NOT_ROUTED": "Không được chọn", "FEATURES_UNAVAILABLE": "Chưa đủ đặc trưng",
     "UNVERIFIED": "Chưa kiểm định tương thích", "INVALID_FLOW": "Flow không hợp lệ",
@@ -103,7 +104,7 @@ class RealtimeDashboard(QWidget):
         self.phase = "idle"
 
         layout = QVBoxLayout(self)
-        title = plain_label("REAL-TIME NETWORK INTRUSION DETECTION")
+        title = plain_label("REAL-TIME TABR IDS")
         title.setStyleSheet("font-size: 22px; font-weight: bold; color: #1b6c80;")
         layout.addWidget(title)
 
@@ -136,20 +137,21 @@ class RealtimeDashboard(QWidget):
         layout.addWidget(self.metrics)
         layout.addWidget(plain_label("Lưu lượng mạng thời gian thực"))
         self.flow_table = make_table([
-            "UTC", "IP nguồn", "IP đích", "Giao thức", "Số gói", "CTU-13",
-            "Gaussian", "AI (x/12)", "CIC/UNSW", "Trễ (ms)",
+            "UTC", "IP nguồn", "IP đích", "Giao thức", "Số gói", "TabR",
+            "Gaussian", "AI (x/2)", "CIC/UNSW", "Trễ (ms)",
         ])
         self.flow_table.itemSelectionChanged.connect(self.show_selected)
         layout.addWidget(self.flow_table, 2)
         self.detail = plain_label("Chọn flow để xem kết quả.")
         layout.addWidget(self.detail)
-        layout.addWidget(plain_label("So sánh 6 thuật toán trên cả hai dataset"))
+        layout.addWidget(plain_label("TabR trên hai bộ trọng số CIC và UNSW"))
         self.model_table = make_table(["Model", "CIC-IDS2017", "UNSW-NB15"])
         self.model_table.setRowCount(len(MODELS))
         self.model_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        layout.addWidget(self.model_table, 2)
+        self.model_table.setMaximumHeight(120)
+        layout.addWidget(self.model_table)
         layout.addWidget(plain_label(
-            "Đồng thuận và confidence không phải ground truth. Không xác định model đúng/sai khi chưa có nhãn thực tế."))
+            "Hai checkpoint có không gian nhãn khác nhau. Confidence không phải độ chính xác; không tự chọn nhãn có confidence cao hơn."))
         self.update_metrics()
         self.show_models({})
         self.update_controls()
@@ -192,7 +194,8 @@ class RealtimeDashboard(QWidget):
         self.phase = "starting"
         self.status.setText(f"Đang khởi động {interface}: {session.name}")
         args = ["-u", "-m", "src.stage4_monitor", "--interface", interface,
-                "--seconds", "0", "--capture-backend", "dumpcap", "--dual",
+                "--seconds", "0", "--capture-backend", "dumpcap", "--tabr",
+                "--tabr-cache", os.environ.get("ATTT_TABR_CACHE", "2"),
                 "--output", str(session), "--stop-file", str(self.stop_file)]
         # Only configure this after independently validating the real extractor.
         provider = os.environ.get("ATTT_FEATURE_PROVIDER", "").strip()
@@ -313,9 +316,9 @@ class RealtimeDashboard(QWidget):
         row = self.flow_table.rowCount()
         self.flow_table.insertRow(row)
         dual = event.get("dual_inference") or {}
-        decision = dual.get("decision", {})
+        decision = aggregate(dual)
         values = (event.get("logged_utc"), event.get("src"), event.get("dst"),
-                  event.get("protocol"), event.get("packets"), event.get("label"),
+                  event.get("protocol"), event.get("packets"), ", ".join(decision["candidate_labels"]) or "—",
                   event.get("gaussian_flag"), decision.get("completed_models", "—"),
                   translate(decision.get("status")), event.get("post_last_packet_ms"))
         for column, value in enumerate(values):
@@ -330,17 +333,21 @@ class RealtimeDashboard(QWidget):
         audits = dual.get("feature_audit", {})
         cic = audits.get("cic") or extract_cic_features(event)
         unsw = audits.get("unsw") or extract_unsw_features(event)
-        decision = dual.get("decision", {})
+        decision = aggregate(dual)
         candidates = ", ".join(decision.get("candidate_labels", [])) or "—"
         self.detail.setText(
-            f"CTU-13: {event.get('label')} | Gaussian: {event.get('gaussian_score')} | "
-            f"AI: {decision.get('completed_models', '—')}/12\n"
+            f"Gaussian: {event.get('gaussian_score')} | TabR: {decision['completed_models']}/2\n"
             f"CIC: {cic['available_count']}/77 ứng viên · {translate(cic['status'])} | "
             f"UNSW: {unsw['available_count']}/34 ứng viên · {translate(unsw['status'])}\n"
             f"Kết quả: {translate(decision.get('status'))} | Nhãn ứng viên: {candidates}")
         self.detail.setToolTip(
             "CIC còn thiếu: " + ", ".join(cic.get("missing_features", [])) + "\nUNSW còn thiếu: "
             + ", ".join(unsw.get("missing_features", [])) + "\n" + str(dual.get("error", "")))
+        host = event.get("host_window") or {}
+        if host:
+            self.detail.setText(self.detail.text() + "\n" +
+                f"Host ({host['window_seconds']}s): {host['flows']} flows, "
+                f"{host['unique_dst_ports']} ports, {host['unique_destinations']} destinations")
         self.show_models(dual)
 
     def show_models(self, dual):
@@ -349,7 +356,7 @@ class RealtimeDashboard(QWidget):
             for column, dataset in enumerate(("cic", "unsw"), 1):
                 branch = dual.get(dataset, {})
                 result = next((item for item in branch.get("models", []) if item.get("model") == model), None)
-                text = translate(branch.get("status", "FEATURES_UNAVAILABLE"))
+                text = translate(branch.get("status", "FEATURES_UNAVAILABLE") if result or branch.get("status") != "OK" else "UNAVAILABLE")
                 tooltip = text
                 if result:
                     predictions = result.get("predictions", [])
