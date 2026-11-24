@@ -1,3 +1,4 @@
+
 """Run with python giao_dien/main.py or python -m giao_dien.main."""
 import sys
 from datetime import datetime
@@ -26,6 +27,7 @@ from giao_dien.data import (
     localize_eda_table, per_class, read_csv, result_dir,
 )
 from giao_dien.prediction import model_paths, predict_file
+from giao_dien.realtime_dashboard import RealtimeDashboard
 
 ROOT = Path(__file__).resolve().parent.parent
 ACCENT = "#1b6c80"
@@ -190,6 +192,7 @@ class Dashboard(QMainWindow):
         self.navigation = QListWidget()
         self.navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.navigation.addItems(["So sánh mô hình", "Chi tiết mô hình", "EDA dữ liệu", "Phân tích đặc trưng", "Dự đoán dữ liệu mới"])
+        self.navigation.addItem("Giám sát thời gian thực")
         self.navigation.setCurrentRow(0)
         side.addWidget(self.navigation)
         side.addWidget(label("Kết quả lưu trên máy\nCIC-IDS2017 / UNSW-NB15", "muted", True))
@@ -215,6 +218,8 @@ class Dashboard(QMainWindow):
         self.build_eda()
         self.build_features()
         self.build_prediction()
+        self.realtime_page = RealtimeDashboard(self.root)
+        self.pages.addWidget(self.realtime_page)
         outer.addWidget(sheet, 1)
         self.navigation.currentRowChanged.connect(self.change_page)
         self.dataset.currentIndexChanged.connect(self.refresh)
@@ -460,9 +465,9 @@ class Dashboard(QMainWindow):
         left_box = QVBoxLayout(left_panel)
         left_box.setContentsMargins(0, 0, 8, 0)
         left_box.addWidget(label("Độ quan trọng của đặc trưng (Feature Importance)", "section"))
-        
+
         self.features_tab = QTabWidget()
-        
+
         # Tab 1: Biểu đồ cột ngang
         chart_widget = QWidget()
         chart_layout = QVBoxLayout(chart_widget)
@@ -483,12 +488,12 @@ class Dashboard(QMainWindow):
         left_box.addWidget(self.features_tab, 1)
         panes.addWidget(left_panel)
 
-        # Cột phải: Phân tích hành vi chi tiết theo từng lớp (dạng báo cáo ATTT)
+        # Cột phải: Phân tích hành vi chi tiết theo từng lớp
         right_panel = QWidget()
         right_box = QVBoxLayout(right_panel)
         right_box.setContentsMargins(8, 0, 0, 0)
         right_box.addWidget(label("Phân tích hành vi chi tiết theo từng lớp (Báo cáo ATTT)", "section"))
-        
+
         self.features_text = QTextBrowser()
         self.features_text.setOpenExternalLinks(True)
         self.features_text.setStyleSheet("""
