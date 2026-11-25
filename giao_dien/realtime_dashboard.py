@@ -8,18 +8,14 @@ import socket
 import sys
 from uuid import uuid4
 
-from PySide6.QtCore import Qt, QProcess, QTimer, Signal
+from PySide6.QtCore import Qt, QProcess, QProcessEnvironment, QTimer, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QFileDialog, QHeaderView, QHBoxLayout,
     QLabel, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from src.cic_feature_extractor import extract_cic_features
-from src.unsw_feature_extractor import extract_unsw_features
-from src.unified_detection import aggregate
 
 ROOT = Path(__file__).resolve().parents[1]
-MODELS = ("TabR",)
 STATUS = {
     "NOT_ROUTED": "Không được chọn", "FEATURES_UNAVAILABLE": "Chưa đủ đặc trưng",
     "UNVERIFIED": "Chưa kiểm định tương thích", "INVALID_FLOW": "Flow không hợp lệ",
@@ -104,7 +100,7 @@ class RealtimeDashboard(QWidget):
         self.phase = "idle"
 
         layout = QVBoxLayout(self)
-        title = plain_label("REAL-TIME TABR IDS")
+        title = plain_label("REAL-TIME NETWORK IDS")
         title.setStyleSheet("font-size: 22px; font-weight: bold; color: #1b6c80;")
         layout.addWidget(title)
 
@@ -137,23 +133,38 @@ class RealtimeDashboard(QWidget):
         layout.addWidget(self.metrics)
         layout.addWidget(plain_label("Lưu lượng mạng thời gian thực"))
         self.flow_table = make_table([
-            "UTC", "IP nguồn", "IP đích", "Giao thức", "Số gói", "TabR",
-            "Gaussian", "AI (x/2)", "CIC/UNSW", "Trễ (ms)",
+            "UTC", "IP nguồn", "IP đích", "Giao thức", "Số gói", "Cổng đích",
+            "Gaussian", "Trễ (ms)",
         ])
         self.flow_table.itemSelectionChanged.connect(self.show_selected)
         layout.addWidget(self.flow_table, 2)
         self.detail = plain_label("Chọn flow để xem kết quả.")
         layout.addWidget(self.detail)
-        layout.addWidget(plain_label("TabR trên hai bộ trọng số CIC và UNSW"))
-        self.model_table = make_table(["Model", "CIC-IDS2017", "UNSW-NB15"])
-        self.model_table.setRowCount(len(MODELS))
-        self.model_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.model_table.setMaximumHeight(120)
-        layout.addWidget(self.model_table)
+        layout.addWidget(plain_label("Cảnh báo / nghi vấn tấn công"))
+
+        self.alert_table = make_table([
+            "UTC",
+            "Loại",
+            "Nguồn phát hiện",
+            "IP nguồn",
+            "IP đích",
+            "Bằng chứng",
+        ])
+
+        layout.addWidget(self.alert_table, 1)
+
         layout.addWidget(plain_label(
-            "Hai checkpoint có không gian nhãn khác nhau. Confidence không phải độ chính xác; không tự chọn nhãn có confidence cao hơn."))
+            "CIC: hành vi theo cửa sổ 60s. "
+            "UNSW: nghi vấn chưa kiểm định; nhãn gốc lưu trong log."
+        ))
+
+        self.behavior_alerts = 0
+        self.unsw_advisories = 0
+        self.windows = 0
+        self.truncated_windows = 0
+
         self.update_metrics()
-        self.show_models({})
+
         self.update_controls()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.poll)
@@ -201,6 +212,18 @@ class RealtimeDashboard(QWidget):
         provider = os.environ.get("ATTT_FEATURE_PROVIDER", "").strip()
         if provider:
             args.extend(["--feature-provider", provider])
+        env = QProcessEnvironment.systemEnvironment()
+
+        for key in (
+            "ATTT_EXPERIMENTAL_TABR",
+            "ATTT_QUALITY_GATE",
+        ):
+
+            if not env.contains(key):
+                env.insert(key, "1")
+
+        self.process.setProcessEnvironment(env)
+
         self.process.start(sys.executable, args)
         self.update_controls()
 
@@ -268,12 +291,30 @@ class RealtimeDashboard(QWidget):
         self.flows = self.alerts = self.graph_alerts = self.packets = self.invalid = 0
         self.flow_table.setRowCount(0)
         self.detail.setText("Chọn flow để xem kết quả.")
-        self.show_models({})
+        self.alert_table.setRowCount(0)
+
+        self.behavior_alerts = 0
+        self.unsw_advisories = 0
+        self.windows = 0
+        self.truncated_windows = 0
+
         self.update_metrics()
 
     def update_metrics(self):
-        self.metrics.setText(f"Flow: {self.flows}  |  Gói trong flow: {self.packets}  |  "
-                             f"Cảnh báo flow: {self.alerts}  |  Cảnh báo đồ thị: {self.graph_alerts}  |  Dòng lỗi: {self.invalid}")
+
+        self.metrics.setText(
+
+            f"Flow: {self.flows}  |  "
+            f"Gói trong flow: {self.packets}  |  "
+            f"Cảnh báo flow: {self.alerts}  |  "
+            f"Hành vi: {self.behavior_alerts}  |  "
+            f"Nghi vấn UNSW: {self.unsw_advisories}  |  "
+            f"Đồ thị: {self.graph_alerts}  |  "
+            f"Cửa sổ 60s: {self.windows} "
+            f"(lỗi giới hạn: {self.truncated_windows})  |  "
+            f"Dòng lỗi: {self.invalid}"
+
+        )
 
     def poll(self):
         if self.path is None or not self.path.is_file():
@@ -289,9 +330,78 @@ class RealtimeDashboard(QWidget):
                 for event in events:
                     kind = event.get("event")
                     if kind == "graph_alert":
+
                         self.graph_alerts += 1
+
+                        self.add_alert(
+                            event,
+                            "Botnet (nghi vấn)",
+                            "Graph",
+                            str(event.get("topology", "")),
+                        )
+
+                    elif kind == "behavior_alert":
+
+                        self.behavior_alerts += 1
+
+                        self.add_alert(
+                            event,
+                            event.get("label"),
+                            event.get("source"),
+                            event.get("evidence"),
+                        )
+
+                    elif kind == "model_candidate":
+
+                        self.unsw_advisories += 1
+
+                        conf = event.get("confidence")
+
+                        detail = (
+                            f"{conf:.1%}; chưa kiểm định"
+                            if isinstance(conf, (int, float))
+                            else "Chưa kiểm định"
+                        )
+
+                        self.add_alert(
+                            event,
+                            event.get("label"),
+                            "TabR UNSW (nghi vấn)",
+                            detail,
+                        )
+
+                    elif kind == "behavior_window":
+
+                        self.windows += 1
+
+                        self.truncated_windows += int(
+                            event.get("truncated", False)
+                        )
+
                     elif kind in {"flow_decision", "flow_alert"}:
+
                         self.add_flow(event)
+
+                        if kind == "flow_alert":
+
+                            if event.get("gaussian_flag"):
+
+                                self.add_alert(
+                                    event,
+                                    "Bất thường",
+                                    "Gaussian",
+                                    f"Score: {event.get('gaussian_score')}",
+                                )
+
+                            elif event.get("ctu_alert") or event.get("dual_alert"):
+
+                                self.add_alert(
+                                    event,
+                                    "Nghi vấn",
+                                    "Flow classifier",
+                                    "Xem log",
+                                )
+
                         added = True
             finally:
                 self.flow_table.blockSignals(False)
@@ -315,62 +425,103 @@ class RealtimeDashboard(QWidget):
         self.events.append(event)
         row = self.flow_table.rowCount()
         self.flow_table.insertRow(row)
-        dual = event.get("dual_inference") or {}
-        decision = aggregate(dual)
-        values = (event.get("logged_utc"), event.get("src"), event.get("dst"),
-                  event.get("protocol"), event.get("packets"), ", ".join(decision["candidate_labels"]) or "—",
-                  event.get("gaussian_flag"), decision.get("completed_models", "—"),
-                  translate(decision.get("status")), event.get("post_last_packet_ms"))
+        values = (
+
+            event.get("logged_utc"),
+
+            event.get("src"),
+
+            event.get("dst"),
+
+            event.get("protocol"),
+
+            event.get("packets"),
+
+            event.get("dport"),
+
+            event.get("gaussian_flag"),
+
+            event.get("post_last_packet_ms"),
+        )
+
         for column, value in enumerate(values):
-            set_cell(self.flow_table, row, column, value)
+
+            set_cell(
+                self.flow_table,
+                row,
+                column,
+                value,
+            )
+
+    def add_alert(self, event, label, source, evidence):
+
+        if self.alert_table.rowCount() >= 500:
+
+            self.alert_table.removeRow(0)
+
+        row = self.alert_table.rowCount()
+
+        self.alert_table.insertRow(row)
+
+        values = (
+
+            event.get("logged_utc"),
+
+            label,
+
+            source,
+
+            event.get("src") or event.get("hub"),
+
+            event.get("dst"),
+
+            evidence,
+        )
+
+        for col, value in enumerate(values):
+
+            set_cell(
+                self.alert_table,
+                row,
+                col,
+                value,
+            )
+
+        self.alert_table.scrollToBottom()
 
     def show_selected(self):
-        row = self.flow_table.currentRow()
-        if not 0 <= row < len(self.events):
-            return
-        event = self.events[row]
-        dual = event.get("dual_inference") or {}
-        audits = dual.get("feature_audit", {})
-        cic = audits.get("cic") or extract_cic_features(event)
-        unsw = audits.get("unsw") or extract_unsw_features(event)
-        decision = aggregate(dual)
-        candidates = ", ".join(decision.get("candidate_labels", [])) or "—"
-        self.detail.setText(
-            f"Gaussian: {event.get('gaussian_score')} | TabR: {decision['completed_models']}/2\n"
-            f"CIC: {cic['available_count']}/77 ứng viên · {translate(cic['status'])} | "
-            f"UNSW: {unsw['available_count']}/34 ứng viên · {translate(unsw['status'])}\n"
-            f"Kết quả: {translate(decision.get('status'))} | Nhãn ứng viên: {candidates}")
-        self.detail.setToolTip(
-            "CIC còn thiếu: " + ", ".join(cic.get("missing_features", [])) + "\nUNSW còn thiếu: "
-            + ", ".join(unsw.get("missing_features", [])) + "\n" + str(dual.get("error", "")))
-        host = event.get("host_window") or {}
-        if host:
-            self.detail.setText(self.detail.text() + "\n" +
-                f"Host ({host['window_seconds']}s): {host['flows']} flows, "
-                f"{host['unique_dst_ports']} ports, {host['unique_destinations']} destinations")
-        self.show_models(dual)
 
-    def show_models(self, dual):
-        for row, model in enumerate(MODELS):
-            set_cell(self.model_table, row, 0, model)
-            for column, dataset in enumerate(("cic", "unsw"), 1):
-                branch = dual.get(dataset, {})
-                result = next((item for item in branch.get("models", []) if item.get("model") == model), None)
-                text = translate(branch.get("status", "FEATURES_UNAVAILABLE") if result or branch.get("status") != "OK" else "UNAVAILABLE")
-                tooltip = text
-                if result:
-                    predictions = result.get("predictions", [])
-                    if result.get("status") == "OK" and len(predictions) == 1:
-                        pred = predictions[0]
-                        latency = result.get("inference_batch_ms")
-                        text = f"{pred['label']} ({pred['confidence']:.1%})"
-                        if latency is not None:
-                            text += f" · {latency:.2f} ms"
-                        tooltip = text
-                    else:
-                        text = translate(result.get("status", "ERROR"))
-                        tooltip = result.get("error", text) + "\n" + result.get("version_warning", "")
-                set_cell(self.model_table, row, column, text, tooltip)
+        row = self.flow_table.currentRow()
+
+        if not 0 <= row < len(self.events):
+
+            return
+
+        event = self.events[row]
+
+        host = event.get("host_window") or {}
+
+        self.detail.setText(
+
+            f"{event.get('src')}:{event.get('sport')} → "
+            f"{event.get('dst')}:{event.get('dport')} | "
+
+            f"Thời lượng: {event.get('duration_s')} s | "
+
+            f"Host ({host.get('window_seconds', 60)}s): "
+
+            f"{host.get('flows', '—')} flows, "
+
+            f"{host.get('unique_dst_ports', '—')} ports, "
+
+            f"{host.get('unique_destinations', '—')} destinations"
+        )
+
+        self.detail.setToolTip(
+            "Chi tiết suy luận được lưu trong events.jsonl."
+        )
+
+
 
     def closeEvent(self, event):
         if self.is_running():

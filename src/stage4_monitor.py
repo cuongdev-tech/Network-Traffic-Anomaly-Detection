@@ -24,6 +24,7 @@ from src.botnet_graph import analyze_flows
 from src.monitor_flows import FlowTable, packet_observation
 from src.monitor_model import alert_decision, classify, load_monitor, features
 from src.host_window import HostWindow
+from src.behavior_detector import BehaviorWindow, unsw_candidate
 from src.unified_detection import UnifiedDetectionEngine, load_provider
 
 
@@ -49,8 +50,10 @@ class Monitor:
         self.bundle, self.log, self.table, self.live = bundle, log, table, live
         self.detector = detector
         self.host_window = HostWindow()
+        self.behavior = BehaviorWindow() if detector is not None else None
         self.counts = {"flow_decisions": 0, "flow_alerts": 0, "graph_alerts": 0, "graph_records_evicted": 0}
         self.counts.update(ctu_alerts=0, gaussian_alerts=0, dual_alerts=0, dual_completed=0)
+        self.counts.update(behavior_alerts=0, behavior_windows=0, behavior_truncated=0, unsw_advisories=0)
         self.classification_ms = deque(maxlen=STATS_SAMPLES)
         self.live_decision_ms = deque(maxlen=STATS_SAMPLES)
         self.live_alert_ms = deque(maxlen=STATS_SAMPLES)
@@ -62,11 +65,23 @@ class Monitor:
         self.log.write(json.dumps(event, ensure_ascii=False, allow_nan=False) + "\n")
         self.log.flush()
 
+    def emit_behavior(self, events):
+        for event in events:
+            event["logged_utc"] = utc(time())
+            self.emit(event)
+            self.counts["behavior_alerts"] += int(event["event"] == "behavior_alert")
+            self.counts["behavior_windows"] += int(event["event"] == "behavior_window")
+            self.counts["behavior_truncated"] += int(event.get("truncated", False))
+
     def accept(self, observation):
+        if self.behavior is not None:
+            self.emit_behavior(self.behavior.observe(observation))
         self.handle(self.table.ingest(observation))
         self.scan_graph()
 
     def tick(self, timestamp):
+        if self.behavior is not None:
+            self.emit_behavior(self.behavior.advance(timestamp))
         self.handle(self.table.expire(timestamp))
         self.scan_graph()
 
@@ -131,6 +146,12 @@ class Monitor:
             event.update(event="flow_alert" if alert else "flow_decision",
                          dual_alert=dual_alert, logged_utc=utc(now), post_last_packet_ms=delay)
             self.emit(event)
+            if self.behavior is not None:
+                candidate = unsw_candidate(event)
+                if candidate is not None:
+                    candidate["logged_utc"] = utc(now)
+                    self.emit(candidate)
+                    self.counts["unsw_advisories"] += 1
             self.counts["flow_decisions"] += 1
             self.counts["flow_alerts"] += int(alert)
             self.counts["ctu_alerts"] += int(ctu_alert)
@@ -170,6 +191,7 @@ class Monitor:
         return {
             **self.counts, "flow_capacity_drops": self.table.capacity_drops,
             "late_packets": self.table.late_packets,
+            "behavior_late_packets": self.behavior.late if self.behavior else 0,
             "classification_batch_timing": percentiles(self.classification_ms),
             "last_packet_to_decision": percentiles(self.live_decision_ms),
             "last_packet_to_alert": percentiles(self.live_alert_ms),
