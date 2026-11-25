@@ -154,8 +154,8 @@ class RealtimeDashboard(QWidget):
         layout.addWidget(self.alert_table, 1)
 
         layout.addWidget(plain_label(
-            "CIC: hành vi theo cửa sổ 60s. "
-            "UNSW: nghi vấn chưa kiểm định; nhãn gốc lưu trong log."
+            "Hành vi: cửa sổ 60s. "
+            "NetFlow: ngưỡng riêng từng lớp; nhãn gốc lưu trong log."
         ))
 
         self.behavior_alerts = 0
@@ -308,7 +308,7 @@ class RealtimeDashboard(QWidget):
             f"Gói trong flow: {self.packets}  |  "
             f"Cảnh báo flow: {self.alerts}  |  "
             f"Hành vi: {self.behavior_alerts}  |  "
-            f"Nghi vấn UNSW: {self.unsw_advisories}  |  "
+            f"Nghi vấn NetFlow: {self.unsw_advisories}  |  "
             f"Đồ thị: {self.graph_alerts}  |  "
             f"Cửa sổ 60s: {self.windows} "
             f"(lỗi giới hạn: {self.truncated_windows})  |  "
@@ -366,7 +366,7 @@ class RealtimeDashboard(QWidget):
                         self.add_alert(
                             event,
                             event.get("label"),
-                            "TabR UNSW (nghi vấn)",
+                            "TabR NetFlow (nghi vấn)",
                             detail,
                         )
 

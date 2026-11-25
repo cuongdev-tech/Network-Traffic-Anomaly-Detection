@@ -1,0 +1,28 @@
+{
+  "schema_version": "netflow_v1_7",
+  "checkpoint_sha256": "7e28765f37417834d669cd1d5a800bb35e43e2bd4adea71efb9814c7dfc6c01d",
+  "thresholds": {
+    "Analysis": null,
+    "Backdoor": 0.92,
+    "DoS": 0.9,
+    "Exploits": 0.71,
+    "Fuzzers": null,
+    "Generic": 0.79,
+    "Reconnaissance": 0.65,
+    "Shellcode": null,
+    "Worms": null
+  },
+  "min_precision": 0.8,
+  "target_fpr": 0.01,
+  "min_alerts": 20,
+  "validation_metrics": {
+    "false_positive_rate": 0.0017196631456677194,
+    "attack_detection_recall": 0.26855699502974006,
+    "alerts": 3675
+  },
+  "test_metrics": {
+    "false_positive_rate": 0.0011171455538535333,
+    "attack_detection_recall": 0.40149271413339654,
+    "alerts": 3750
+  }
+}

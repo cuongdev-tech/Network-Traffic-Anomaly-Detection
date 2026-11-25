@@ -24,8 +24,12 @@ from src.botnet_graph import analyze_flows
 from src.monitor_flows import FlowTable, packet_observation
 from src.monitor_model import alert_decision, classify, load_monitor, features
 from src.host_window import HostWindow
-from src.behavior_detector import BehaviorWindow, unsw_candidate
-from src.unified_detection import UnifiedDetectionEngine, load_provider
+from src.realtime_detection import (
+    RealtimeBehaviorWindow as BehaviorWindow,
+    netflow_candidate as unsw_candidate,
+)
+from src.realtime_detection import RealtimeDetectionEngine as UnifiedDetectionEngine
+from src.unified_detection import load_provider
 
 
 GRAPH_WINDOW = 900
