@@ -30,6 +30,31 @@ def validate_unsw_row(row):
     )
 
 
+UNSW_LOCAL_DEFINITIONS = {
+
+    "sbytes": "IPv4 bytes; not verified against Argus",
+    "dbytes": "IPv4 bytes; not verified against Argus",
+
+    "sload": "local directional bit rate",
+    "dload": "local directional bit rate",
+
+    "sjit": "local IAT standard deviation",
+    "djit": "local IAT standard deviation",
+
+    "sloss": "observed TCP sequence overlaps",
+    "dloss": "observed TCP sequence overlaps",
+
+    "state": "local connection-state heuristic",
+    "service": "local application parser",
+
+    "ct_src_dport_ltm": "last 100 locally closed flows",
+    "ct_dst_sport_ltm": "last 100 locally closed flows",
+
+    "ct_flw_http_mthd": "local HTTP transaction count",
+
+}
+
+
 def extract_unsw_features(event, reference=None):
 
     try:
@@ -210,6 +235,7 @@ def extract_unsw_features(event, reference=None):
         result["local_estimates"] = sorted(
             set(local) & allowed & values.keys()
         )
+    result["unverified_definitions"] = {n: v for n, v in UNSW_LOCAL_DEFINITIONS.items() if n in values}
     return attach_reference(
         result,
         event,

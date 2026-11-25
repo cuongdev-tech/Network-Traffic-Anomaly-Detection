@@ -125,7 +125,7 @@ def summarize_branch(branch):
 # COMBINE CIC AND UNSW RESULTS
 # ==========================================
 
-def aggregate(dual):
+def _raw_aggregate(dual):
 
     branches = {
 
@@ -211,6 +211,12 @@ def aggregate(dual):
 
         "required_models": 2,
     }
+
+
+from src.ood_detector import attach_quality, apply_quality
+
+def aggregate(dual):
+    return apply_quality(dual, _raw_aggregate(dual))
 
 
 # ==========================================
@@ -444,6 +450,7 @@ class UnifiedDetectionEngine:
 
         )
 
+        attach_quality(dual, rows, self.engine.root, event.get("gaussian_flag"))
         dual["decision"] = aggregate(dual)
 
         return dual

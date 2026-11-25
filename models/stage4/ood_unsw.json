@@ -1,0 +1,556 @@
+{
+  "version": 1,
+  "dataset": "unsw",
+  "features": [
+    "dur",
+    "proto",
+    "service",
+    "state",
+    "spkts",
+    "dpkts",
+    "sbytes",
+    "dbytes",
+    "rate",
+    "sload",
+    "dload",
+    "sloss",
+    "dloss",
+    "sinpkt",
+    "dinpkt",
+    "sjit",
+    "djit",
+    "swin",
+    "stcpb",
+    "dtcpb",
+    "dwin",
+    "tcprtt",
+    "synack",
+    "ackdat",
+    "smean",
+    "dmean",
+    "trans_depth",
+    "response_body_len",
+    "ct_src_dport_ltm",
+    "ct_dst_sport_ltm",
+    "is_ftp_login",
+    "ct_ftp_cmd",
+    "ct_flw_http_mthd",
+    "is_sm_ips_ports"
+  ],
+  "reference": {
+    "dur": {
+      "lo": 9.999999974752427e-07,
+      "median": 9.000000318337698e-06,
+      "hi": 58.89491653442383
+    },
+    "proto": {
+      "categories": [
+        "3pc",
+        "a/n",
+        "aes-sp3-d",
+        "any",
+        "argus",
+        "aris",
+        "arp",
+        "ax.25",
+        "bbn-rcc",
+        "bna",
+        "br-sat-mon",
+        "cbt",
+        "cftp",
+        "chaos",
+        "compaq-peer",
+        "cphb",
+        "cpnx",
+        "crtp",
+        "crudp",
+        "dcn",
+        "ddp",
+        "ddx",
+        "dgp",
+        "egp",
+        "eigrp",
+        "emcon",
+        "encap",
+        "etherip",
+        "fc",
+        "fire",
+        "ggp",
+        "gmtp",
+        "gre",
+        "hmp",
+        "i-nlsp",
+        "iatp",
+        "ib",
+        "icmp",
+        "idpr",
+        "idpr-cmtp",
+        "idrp",
+        "ifmp",
+        "igmp",
+        "igp",
+        "il",
+        "ip",
+        "ipcomp",
+        "ipcv",
+        "ipip",
+        "iplt",
+        "ipnip",
+        "ippc",
+        "ipv6",
+        "ipv6-frag",
+        "ipv6-no",
+        "ipv6-opts",
+        "ipv6-route",
+        "ipx-n-ip",
+        "irtp",
+        "isis",
+        "iso-ip",
+        "iso-tp4",
+        "kryptolan",
+        "l2tp",
+        "larp",
+        "leaf-1",
+        "leaf-2",
+        "merit-inp",
+        "mfe-nsp",
+        "mhrp",
+        "micp",
+        "mobile",
+        "mtp",
+        "mux",
+        "narp",
+        "netblt",
+        "nsfnet-igp",
+        "nvp",
+        "ospf",
+        "pgm",
+        "pim",
+        "pipe",
+        "pnni",
+        "pri-enc",
+        "prm",
+        "ptp",
+        "pup",
+        "pvp",
+        "qnx",
+        "rdp",
+        "rsvp",
+        "rvd",
+        "sat-expak",
+        "sat-mon",
+        "sccopmce",
+        "scps",
+        "sctp",
+        "sdrp",
+        "secure-vmtp",
+        "sep",
+        "skip",
+        "sm",
+        "smp",
+        "snp",
+        "sprite-rpc",
+        "sps",
+        "srp",
+        "st2",
+        "stp",
+        "sun-nd",
+        "swipe",
+        "tcf",
+        "tcp",
+        "tlsp",
+        "tp++",
+        "trunk-1",
+        "trunk-2",
+        "ttp",
+        "udp",
+        "unas",
+        "uti",
+        "vines",
+        "visa",
+        "vmtp",
+        "vrrp",
+        "wb-expak",
+        "wb-mon",
+        "wsn",
+        "xnet",
+        "xns-idp",
+        "xtp",
+        "zero"
+      ]
+    },
+    "service": {
+      "categories": [
+        "-",
+        "dhcp",
+        "dns",
+        "ftp",
+        "ftp-data",
+        "http",
+        "irc",
+        "pop3",
+        "radius",
+        "smtp",
+        "snmp",
+        "ssh",
+        "ssl"
+      ]
+    },
+    "state": {
+      "categories": [
+        "ACC",
+        "CLO",
+        "CON",
+        "ECO",
+        "FIN",
+        "INT",
+        "REQ",
+        "RST"
+      ]
+    },
+    "spkts": {
+      "lo": 1.0,
+      "median": 2.0,
+      "hi": 274.36999999999534
+    },
+    "dpkts": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 380.0
+    },
+    "sbytes": {
+      "lo": 60.0,
+      "median": 200.0,
+      "hi": 239220.21999999764
+    },
+    "dbytes": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 407496.58999999997
+    },
+    "rate": {
+      "lo": 0.0,
+      "median": 100000.0,
+      "hi": 1000000.0
+    },
+    "sload": {
+      "lo": 0.0,
+      "median": 50666664.0,
+      "hi": 1104634292.479992
+    },
+    "dload": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 12737484.274999958
+    },
+    "sloss": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 83.0
+    },
+    "dloss": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 157.0
+    },
+    "sinpkt": {
+      "lo": 0.0010000000474974513,
+      "median": 0.008999999612569809,
+      "hi": 10796.978515625
+    },
+    "dinpkt": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 2434.607177734375
+    },
+    "sjit": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 223582.8468749998
+    },
+    "djit": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 14309.891743163917
+    },
+    "swin": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 255.0
+    },
+    "stcpb": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 4241338288.885
+    },
+    "dtcpb": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 4235406444.7399993
+    },
+    "dwin": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 255.0
+    },
+    "tcprtt": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 0.30573990672826745
+    },
+    "synack": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 0.17667040705680845
+    },
+    "ackdat": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 0.16641327485442134
+    },
+    "smean": {
+      "lo": 43.0,
+      "median": 68.0,
+      "hi": 1257.0
+    },
+    "dmean": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 1277.0
+    },
+    "trans_depth": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 1.0
+    },
+    "response_body_len": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 15926.789999999688
+    },
+    "ct_src_dport_ltm": {
+      "lo": 1.0,
+      "median": 2.0,
+      "hi": 43.0
+    },
+    "ct_dst_sport_ltm": {
+      "lo": 1.0,
+      "median": 1.0,
+      "hi": 25.0
+    },
+    "is_ftp_login": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 1.0
+    },
+    "ct_ftp_cmd": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 1.0
+    },
+    "ct_flw_http_mthd": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 4.0
+    },
+    "is_sm_ips_ports": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 0.0
+    }
+  },
+  "normal_reference": {
+    "dur": {
+      "lo": 0.0,
+      "median": 0.04979399964213371,
+      "hi": 36.75892168044996
+    },
+    "proto": {
+      "categories": [
+        "arp",
+        "icmp",
+        "igmp",
+        "ospf",
+        "tcp",
+        "udp"
+      ]
+    },
+    "service": {
+      "categories": [
+        "-",
+        "dns",
+        "ftp",
+        "ftp-data",
+        "http",
+        "radius",
+        "smtp",
+        "ssh"
+      ]
+    },
+    "state": {
+      "categories": [
+        "CON",
+        "ECO",
+        "FIN",
+        "INT",
+        "REQ",
+        "RST"
+      ]
+    },
+    "spkts": {
+      "lo": 1.0,
+      "median": 10.0,
+      "hi": 366.0099999999984
+    },
+    "dpkts": {
+      "lo": 0.0,
+      "median": 8.0,
+      "hi": 746.0
+    },
+    "sbytes": {
+      "lo": 46.0,
+      "median": 1040.0,
+      "hi": 68197.0
+    },
+    "dbytes": {
+      "lo": 0.0,
+      "median": 642.0,
+      "hi": 1087890.05
+    },
+    "rate": {
+      "lo": 0.0,
+      "median": 802.89599609375,
+      "hi": 500000.0
+    },
+    "sload": {
+      "lo": 0.0,
+      "median": 315374.53125,
+      "hi": 1066029999.9999952
+    },
+    "dload": {
+      "lo": 0.0,
+      "median": 76302.34375,
+      "hi": 16462571.369999986
+    },
+    "sloss": {
+      "lo": 0.0,
+      "median": 2.0,
+      "hi": 38.0
+    },
+    "dloss": {
+      "lo": 0.0,
+      "median": 2.0,
+      "hi": 370.0
+    },
+    "sinpkt": {
+      "lo": 0.0010000000474974513,
+      "median": 2.4534389972686768,
+      "hi": 60000.78517578125
+    },
+    "dinpkt": {
+      "lo": 0.0,
+      "median": 1.0180000066757202,
+      "hi": 4454.558593749889
+    },
+    "sjit": {
+      "lo": 0.0,
+      "median": 73.44557571411133,
+      "hi": 265704.78234374936
+    },
+    "djit": {
+      "lo": 0.0,
+      "median": 20.22462558746338,
+      "hi": 16032.574111327656
+    },
+    "swin": {
+      "lo": 0.0,
+      "median": 255.0,
+      "hi": 255.0
+    },
+    "stcpb": {
+      "lo": 0.0,
+      "median": 1206495093.0,
+      "hi": 4268395787.6349998
+    },
+    "dtcpb": {
+      "lo": 0.0,
+      "median": 1176278970.5,
+      "hi": 4259548348.2999997
+    },
+    "dwin": {
+      "lo": 0.0,
+      "median": 255.0,
+      "hi": 255.0
+    },
+    "tcprtt": {
+      "lo": 0.0,
+      "median": 0.000661000027321279,
+      "hi": 0.6189394423365508
+    },
+    "synack": {
+      "lo": 0.0,
+      "median": 0.000526999996509403,
+      "hi": 0.3385387136042011
+    },
+    "ackdat": {
+      "lo": 0.0,
+      "median": 0.0001289999927394092,
+      "hi": 0.2797487039864041
+    },
+    "smean": {
+      "lo": 39.0,
+      "median": 73.0,
+      "hi": 1137.0
+    },
+    "dmean": {
+      "lo": 0.0,
+      "median": 82.0,
+      "hi": 1458.0
+    },
+    "trans_depth": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 1.0
+    },
+    "response_body_len": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 524288.0
+    },
+    "ct_src_dport_ltm": {
+      "lo": 1.0,
+      "median": 1.0,
+      "hi": 14.0
+    },
+    "ct_dst_sport_ltm": {
+      "lo": 1.0,
+      "median": 1.0,
+      "hi": 3.0
+    },
+    "is_ftp_login": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 1.0
+    },
+    "ct_ftp_cmd": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 1.0
+    },
+    "ct_flw_http_mthd": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 4.0
+    },
+    "is_sm_ips_ports": {
+      "lo": 0.0,
+      "median": 0.0,
+      "hi": 1.0
+    }
+  },
+  "train_rows": 132964,
+  "validation_rows": 14774,
+  "max_outliers": 4,
+  "validation_rejection": 0.0026397725734398267,
+  "test_indices_sha256": "942096841d54fc158fac436e5c57a6bcda38fc4319e7aa2f19c2e7e2c65e0ed8"
+}
